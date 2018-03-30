@@ -53,7 +53,7 @@ def play(network, readouts, resign_threshold, verbosity=0):
         move = player.pick_move()
         player.play_move(move)
         if player.root.is_done():
-            player.set_result(player.root.position.result(), was_resign=False)
+            #player.set_result(player.root.position.result(), was_resign=False)
             break
 
         if (verbosity >= 2) or (verbosity >= 1 and player.root.position.n % 10 == 9):
@@ -66,7 +66,7 @@ def play(network, readouts, resign_threshold, verbosity=0):
                   player.root.fmove)
 
     if verbosity >= 2:
-        print("%s: %.3f" % (player.result_string, player.root.Q), file=sys.stderr)
+        print("%s: %.3f" % (player.root.position.score(), player.root.Q), file=sys.stderr)
         print(player.root.position,
               player.root.position.score(), file=sys.stderr)
 

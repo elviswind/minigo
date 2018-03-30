@@ -16,12 +16,12 @@ class PositionWithContext(namedtuple('SgfPosition', ['position', 'next_move', 'r
     pass
 
 
-def replay_position(position, result):
+def replay_position(position):
     assert position.n == len(position.recent), "Position history is incomplete"
     pos = Position()
     for player_move in position.recent:
         choice = player_move
-        yield PositionWithContext(pos, choice, result)
+        yield PositionWithContext(pos, choice, position.score())
         pos = pos.play_move(choice)
 
 
@@ -40,8 +40,9 @@ class Position():
     def all_legal_moves(self):
         # by default, can choose every one
         legal_moves = np.ones([M], dtype=np.int8)
-        # ...unless it is chosen already
-        legal_moves[self.selected != 0] = 0
+        arr = np.where(self.selected == 1)[0]
+        if len(arr) > 0:
+            legal_moves[:arr[-1]] = 0
         return legal_moves
 
     def play_move(self, choice):
@@ -53,22 +54,4 @@ class Position():
         return self.remain == 0
 
     def score(self):
-        return 10 - np.linalg.norm(self.board)
-
-    def result(self):
-        score = self.score()
-        if score > 9.5:
-            return 1
-        elif score < 9.5:
-            return -1
-        else:
-            return 0
-
-    def result_string(self):
-        score = self.score()
-        if score > 0:
-            return 'Good ' + '%.1f' % score
-        elif score < 0:
-            return 'Bad ' + '%.1f' % abs(score)
-        else:
-            return 'DRAW'
+        return 1 - np.linalg.norm(self.board)

@@ -76,8 +76,6 @@ class MCTSPlayerMixin:
         self.comments = []
         self.searches_pi = []
         self.root = None
-        self.result = 0
-        self.result_string = None
         self.resign_threshold = -abs(resign_threshold)
         super().__init__()
 
@@ -85,8 +83,6 @@ class MCTSPlayerMixin:
         if position is None:
             position = go.Position()
         self.root = MCTSNode(position)
-        self.result = 0
-        self.result_string = None
         self.comments = []
         self.searches_pi = []
         self.qs = []
@@ -200,21 +196,12 @@ class MCTSPlayerMixin:
         '''Returns true if the player resigned.  No further moves should be played'''
         return self.root.Q_perspective < self.resign_threshold
 
-    def set_result(self, winner, was_resign):
-        self.result = winner
-        if was_resign:
-            string = "B+R" if winner == go.BLACK else "W+R"
-        else:
-            string = self.root.position.result_string()
-        self.result_string = string
-
     def is_done(self):
         return self.result != 0 or self.root.is_done()
 
     def extract_data(self):
         assert len(self.searches_pi) == self.root.position.n
-        assert self.result != 0
-        for pwc, pi in zip(go.replay_position(self.root.position, self.result),
+        for pwc, pi in zip(go.replay_position(self.root.position),
                            self.searches_pi):
             yield pwc.position, pi, pwc.position.score();
 

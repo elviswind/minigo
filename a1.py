@@ -20,7 +20,7 @@ for f in files:
         mx = t
         file = f
 
-readouts = 200
+readouts = 400
 network = dual_net.DualNetwork(file.split('.index')[0])
 for i in range(50):
     player = selfplay_mcts.play(network, readouts, -1.0, 1)
