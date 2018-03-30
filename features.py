@@ -148,7 +148,8 @@ NEW_FEATURES_PLANES = sum(f.planes for f in NEW_FEATURES)
 
 
 def extract_features(position, features=NEW_FEATURES):
-    return np.concatenate([feature(position) for feature in features], axis=2)
+    board = np.expand_dims(position.board, axis=2)
+    return board, position.remain
 
 
 def bulk_extract_features(positions, features=NEW_FEATURES):

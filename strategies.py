@@ -18,10 +18,6 @@ import os
 import random
 import sys
 import time
-import sgf_wrapper
-
-import coords
-import gtp
 import numpy as np
 from mcts import MCTSNode, MAX_DEPTH
 
@@ -136,7 +132,7 @@ class MCTSPlayerMixin:
         self.qs.append(self.root.Q)  # Save our resulting Q.
         self.comments.append(self.root.describe())
         try:
-            self.root = self.root.maybe_add_child(coords.to_flat(c))
+            self.root = self.root.maybe_add_child(c)
         except go.IllegalMove:
             print("Illegal move")
             if not self.two_player_mode:
@@ -161,7 +157,7 @@ class MCTSPlayerMixin:
             selection = random.random()
             fcoord = cdf.searchsorted(selection)
             assert self.root.child_N[fcoord] != 0
-        return coords.from_flat(fcoord)
+        return fcoord
 
     def tree_search(self, num_parallel=None):
         if num_parallel is None:
@@ -178,13 +174,11 @@ class MCTSPlayerMixin:
                 value = 1 if leaf.position.score() > 0 else -1
                 leaf.backup_value(value, up_to=self.root)
                 continue
-            leaf.add_virtual_loss(up_to=self.root)
             leaves.append(leaf)
         if leaves:
             move_probs, values = self.network.run_many(
                 [leaf.position for leaf in leaves])
             for leaf, move_prob, value in zip(leaves, move_probs, values):
-                leaf.revert_virtual_loss(up_to=self.root)
                 leaf.incorporate_results(move_prob, value, up_to=self.root)
 
     def show_path_to_root(self, node):
@@ -194,7 +188,7 @@ class MCTSPlayerMixin:
             return
 
         def fmt(move): return "{}-{}".format('b' if move.color == 1 else 'w',
-                                             coords.to_kgs(move.move))
+                                             move.move)
         path = " ".join(fmt(move) for move in pos.recent[-diff:])
         if node.position.n >= MAX_DEPTH:
             path += " (depth cutoff reached) %0.1f" % node.position.score()
@@ -214,22 +208,6 @@ class MCTSPlayerMixin:
             string = self.root.position.result_string()
         self.result_string = string
 
-    def to_sgf(self, use_comments=True):
-        assert self.result_string is not None
-        pos = self.root.position
-        if use_comments:
-            comments = self.comments or ['No comments.']
-            comments[0] = ("Resign Threshold: %0.3f\n" %
-                           self.resign_threshold) + comments[0]
-        else:
-            comments = []
-        return sgf_wrapper.make_sgf(pos.recent, self.result_string,
-                                    white_name=os.path.basename(
-                                        self.network.save_file) or "Unknown",
-                                    black_name=os.path.basename(
-                                        self.network.save_file) or "Unknown",
-                                    comments=comments)
-
     def is_done(self):
         return self.result != 0 or self.root.is_done()
 
@@ -238,7 +216,7 @@ class MCTSPlayerMixin:
         assert self.result != 0
         for pwc, pi in zip(go.replay_position(self.root.position, self.result),
                            self.searches_pi):
-            yield pwc.position, pi, pwc.result
+            yield pwc.position, pi, pwc.position.score();
 
     def chat(self, msg_type, sender, text):
         default_response = "Supported commands are 'winrate', 'nextplay', 'fortune', and 'help'."
