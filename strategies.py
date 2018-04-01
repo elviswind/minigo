@@ -183,9 +183,7 @@ class MCTSPlayerMixin:
         if len(pos.recent) == 0:
             return
 
-        def fmt(move): return "{}-{}".format('b' if move.color == 1 else 'w',
-                                             move.move)
-        path = " ".join(fmt(move) for move in pos.recent[-diff:])
+        path = " ".join(str(move) for move in pos.recent[-diff:])
         if node.position.n >= MAX_DEPTH:
             path += " (depth cutoff reached) %0.1f" % node.position.score()
         elif node.position.is_game_over():

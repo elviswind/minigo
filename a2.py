@@ -25,4 +25,3 @@ tf_records = tf_records[-1 * (WINDOW_SIZE // EXAMPLES_PER_RECORD):]
 
 print("Training from:", tf_records[0], "to", tf_records[-1])
 dual_net.train(working_dir, tf_records, 2)
-#dual_net.export_model('.', './data/model2')
