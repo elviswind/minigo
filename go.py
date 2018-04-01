@@ -42,7 +42,7 @@ class Position():
         legal_moves = np.ones([M], dtype=np.int8)
         arr = np.where(self.selected == 1)[0]
         if len(arr) > 0:
-            legal_moves[:arr[-1]] = 0
+            legal_moves[:arr[-1] + 1] = 0
         return legal_moves
 
     def play_move(self, choice):
