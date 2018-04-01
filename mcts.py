@@ -25,7 +25,7 @@ import math
 
 import go
 
-MAX_DEPTH = 10  # 505 moves for 19x19, 113 for 9x9
+MAX_DEPTH = 30
 
 # Exploration constant
 c_PUCT = 1.38
@@ -157,7 +157,7 @@ class MCTSNode(object):
         self.parent.revert_visits(up_to)
 
     def incorporate_results(self, move_probabilities, value, up_to):
-        assert move_probabilities.shape == (go.N * go.N + 1,)
+        assert move_probabilities.shape == (go.M,)
         # A finished game should not be going through this code path - should
         # directly call backup_value() on the result of the game.
         assert not self.position.is_game_over()
@@ -193,7 +193,7 @@ class MCTSNode(object):
         '''True if the last two moves were Pass or if the position is at a move
         greater than the max depth.
         '''
-        return self.position.is_game_over()
+        return self.position.is_game_over() or self.position.n >= MAX_DEPTH
 
     def inject_noise(self):
         dirch = np.random.dirichlet([D_NOISE_ALPHA()] * go.M)
