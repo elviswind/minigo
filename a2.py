@@ -15,7 +15,6 @@ import time
 ##########################
 record_files = gfile.Glob(working_dir + '/selfplay-*.tfrecord.zz')
 for i, example_batch in enumerate(preprocessing.shuffle_tf_examples(EXAMPLES_PER_RECORD, record_files)):
-    print(i)
     output_record = working_dir + '/gathered-{}.tfrecord.zz'.format(str(i))
     preprocessing.write_tf_examples(
         output_record, example_batch, serialize=False)

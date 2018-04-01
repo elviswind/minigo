@@ -167,8 +167,7 @@ class MCTSPlayerMixin:
                 print(self.show_path_to_root(leaf))
             # if game is over, override the value estimate with the true score
             if leaf.is_done():
-                value = 1 if leaf.position.score() > 0 else -1
-                leaf.backup_value(value, up_to=self.root)
+                leaf.backup_value(leaf.position.score(), up_to=self.root)
                 continue
             leaves.append(leaf)
         if leaves:
