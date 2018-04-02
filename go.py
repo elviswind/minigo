@@ -50,8 +50,14 @@ class Position():
         s[choice] = 1
         return Position(self.board + d[choice], s, self.n + 1, self.remain - 1, self.recent + [choice])
 
+
     def is_game_over(self):
         return self.remain == 0
 
     def score(self):
-        return 1 - np.linalg.norm(self.board)
+        score = 1 - np.linalg.norm(self.board)
+        return score
+
+    def report(self):
+        print(np.array(names)[np.where(self.selected == 1)])
+

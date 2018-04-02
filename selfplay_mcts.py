@@ -57,7 +57,9 @@ def play(network, readouts, resign_threshold, verbosity=0):
             break
 
         if (verbosity >= 2) or (verbosity >= 1 and player.root.position.n % 10 == 9):
-            print("Q: {:.5f}, Score: {:.5f}".format(player.root.Q, player.root.position.score()))
+            print("Q: {:.5f}, ------------------------ Score: {:.5f}".format(player.root.Q, player.root.position.score()))
+            if player.root.position.score() > 0.2:
+                player.root.position.report();
             dur = time.time() - start
             print("%d: %d readouts, %.3f s/100. (%.2f sec)" % (
                 player.root.position.n, readouts, dur / readouts * 100.0, dur), flush=True)

@@ -194,34 +194,10 @@ class MCTSPlayerMixin:
         return self.root.Q_perspective < self.resign_threshold
 
     def is_done(self):
-        return self.result != 0 or self.root.is_done()
+        return self.root.is_done()
 
     def extract_data(self):
         assert len(self.searches_pi) == self.root.position.n
         for pwc, pi in zip(go.replay_position(self.root.position),
                            self.searches_pi):
             yield pwc.position, pi, pwc.position.score();
-
-    def chat(self, msg_type, sender, text):
-        default_response = "Supported commands are 'winrate', 'nextplay', 'fortune', and 'help'."
-        if self.root is None or self.root.position.n == 0:
-            return "I'm not playing right now.  " + default_response
-
-        if 'winrate' in text.lower():
-            wr = (abs(self.root.Q) + 1.0) / 2.0
-            color = "Black" if self.root.Q > 0 else "White"
-            return "{:s} {:.2f}%".format(color, wr * 100.0)
-        elif 'nextplay' in text.lower():
-            return "I'm thinking... " + self.root.most_visited_path()
-        elif 'fortune' in text.lower():
-            return "You're feeling lucky!"
-        elif 'help' in text.lower():
-            return "I can't help much with go -- try ladders!  Otherwise: " + default_response
-        else:
-            return default_response
-
-
-class CGOSPlayerMixin(MCTSPlayerMixin):
-    def suggest_move(self, position):
-        self.seconds_per_move = time_recommendation(position.n)
-        return super().suggest_move(position)

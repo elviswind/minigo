@@ -31,7 +31,7 @@ import go
 
 # How many positions to look at per generation.
 # Per AGZ, 2048 minibatch * 1k = 2M positions/generation
-EXAMPLES_PER_GENERATION = 250000
+EXAMPLES_PER_GENERATION = 1200000
 
 # How many positions can fit on a graphics card. 256 for 9s, 16 or 32 for 19s.
 TRAIN_BATCH_SIZE = 16
@@ -314,8 +314,8 @@ def train(working_dir, tf_records, generation_num, **hparams):
 
     def input_fn(): return preprocessing.get_input_tensors(
         TRAIN_BATCH_SIZE, tf_records)
-    update_ratio_hook = UpdateRatioSessionHook(working_dir)
-    estimator.train(input_fn, hooks=[update_ratio_hook], max_steps=max_steps)
+    #update_ratio_hook = UpdateRatioSessionHook(working_dir)
+    estimator.train(input_fn, max_steps=max_steps)
 
 
 def validate(working_dir, tf_records, checkpoint_name=None, **hparams):
