@@ -23,7 +23,6 @@ import socket
 import sys
 import tempfile
 import time
-import cloud_logging
 from tqdm import tqdm
 import gzip
 import numpy as np
@@ -32,11 +31,9 @@ from tensorflow import gfile
 
 import go
 import dual_net
-from gtp_wrapper import make_gtp_instance, MCTSPlayer
 import preprocessing
 import selfplay_mcts
 from utils import logged_timer as timer
-import evaluation
 import sgf_wrapper
 import utils
 
@@ -52,31 +49,6 @@ def _ensure_dir_exists(directory):
     if directory.startswith('gs://'):
         return
     os.makedirs(directory, exist_ok=True)
-
-
-def gtp(load_file: "The path to the network model files"=None,
-        readouts: 'How many simulations to run per move'=100,
-        cgos_mode: 'Whether to use CGOS time constraints'=False,
-        verbose=1):
-    engine = make_gtp_instance(load_file,
-                               readouts_per_move=readouts,
-                               verbosity=verbose,
-                               cgos_mode=cgos_mode)
-    sys.stderr.write("GTP engine ready\n")
-    sys.stderr.flush()
-    while not engine.disconnect:
-        inpt = input()
-        # handle either single lines at a time
-        # or multiple commands separated by '\n'
-        try:
-            cmd_list = inpt.split("\n")
-        except:
-            cmd_list = [inpt]
-        for cmd in cmd_list:
-            engine_reply = engine.send(cmd)
-            sys.stdout.write(engine_reply)
-            sys.stdout.flush()
-
 
 def bootstrap(
         working_dir: 'tf.estimator working directory. If not set, defaults to a random tmp dir'=None,
@@ -127,24 +99,6 @@ def validate(
             name=validate_name)
 
 
-def evaluate(
-        black_model: 'The path to the model to play black',
-        white_model: 'The path to the model to play white',
-        output_dir: 'Where to write the evaluation results'='sgf/evaluate',
-        readouts: 'How many readouts to make per move.'=400,
-        games: 'the number of games to play'=16,
-        verbose: 'How verbose the players should be (see selfplay)' = 1):
-    _ensure_dir_exists(output_dir)
-
-    with timer("Loading weights"):
-        black_net = dual_net.DualNetwork(black_model)
-        white_net = dual_net.DualNetwork(white_model)
-
-    with timer("%d games" % games):
-        evaluation.play_match(
-            black_net, white_net, games, readouts, output_dir, verbose)
-
-
 def selfplay(
         load_file: "The path to the network model files",
         output_dir: "Where to write the games"="data/selfplay",
@@ -164,26 +118,16 @@ def selfplay(
     with timer("Loading weights from %s ... " % load_file):
         network = dual_net.DualNetwork(load_file)
 
-    with timer("Playing game"):
-        player = selfplay_mcts.play(
-            network, readouts, resign_threshold, verbose)
+    for i in range(50):
+        with timer("Playing game"):
+            player = selfplay_mcts.play(
+                network, readouts, verbose)
 
-    output_name = '{}-{}'.format(int(time.time()), socket.gethostname())
-    game_data = player.extract_data()
-    with gfile.GFile(os.path.join(clean_sgf, '{}.sgf'.format(output_name)), 'w') as f:
-        f.write(player.to_sgf(use_comments=False))
-    with gfile.GFile(os.path.join(full_sgf, '{}.sgf'.format(output_name)), 'w') as f:
-        f.write(player.to_sgf())
-
-    tf_examples = preprocessing.make_dataset_from_selfplay(game_data)
-
-    # Hold out 5% of games for evaluation.
-    if random.random() < holdout_pct:
-        fname = os.path.join(holdout_dir, "{}.tfrecord.zz".format(output_name))
-    else:
+        output_name = '{}-{}'.format(int(time.time()), socket.gethostname())
+        game_data = player.extract_data()
+        tf_examples = preprocessing.make_dataset_from_selfplay(game_data)
         fname = os.path.join(output_dir, "{}.tfrecord.zz".format(output_name))
-
-    preprocessing.write_tf_examples(fname, tf_examples)
+        preprocessing.write_tf_examples(fname, tf_examples)
 
 
 def gather(
@@ -264,9 +208,8 @@ def convert(load_file, dest_file):
 
 
 parser = argparse.ArgumentParser()
-argh.add_commands(parser, [gtp, bootstrap, train,
-                           selfplay, gather, evaluate, validate, convert])
+argh.add_commands(parser, [bootstrap, train,
+                           selfplay, gather, validate, convert])
 
 if __name__ == '__main__':
-    cloud_logging.configure()
     argh.dispatch(parser)

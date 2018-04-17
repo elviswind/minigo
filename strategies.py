@@ -12,26 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import copy
-import math
-import os
 import random
 import sys
 import time
-import sgf_wrapper
-
-import coords
-import gtp
 import numpy as np
 from mcts import MCTSNode, MAX_DEPTH
 
 import go
 
 # When to do deterministic move selection.  ~30 moves on a 19x19, ~8 on 9x9
-TEMPERATURE_CUTOFF = int((go.N * go.N) / 12)
+TEMPERATURE_CUTOFF = int(go.M / 4)
 
 
-def time_recommendation(move_num, seconds_per_move=5, time_limit=15*60,
+def time_recommendation(move_num, seconds_per_move=5, time_limit=15 * 60,
                         decay_factor=0.98):
     '''Given the current move number and the 'desired' seconds per move, return
     how much time should actually be used. This is intended specifically for
@@ -64,33 +57,23 @@ class MCTSPlayerMixin:
     # If `simulations_per_move` is nonzero, it will perform that many reads
     # before playing. Otherwise, it uses `seconds_per_move` of wall time.
     def __init__(self, network, seconds_per_move=5, simulations_per_move=0,
-                 resign_threshold=-0.90, verbosity=0, two_player_mode=False,
-                 num_parallel=8):
+                 verbosity=0, num_parallel=8):
         self.network = network
         self.seconds_per_move = seconds_per_move
         self.simulations_per_move = simulations_per_move
         self.verbosity = verbosity
-        self.two_player_mode = two_player_mode
-        if two_player_mode:
-            self.temp_threshold = -1
-        else:
-            self.temp_threshold = TEMPERATURE_CUTOFF
+        self.temp_threshold = TEMPERATURE_CUTOFF
         self.num_parallel = num_parallel
         self.qs = []
         self.comments = []
         self.searches_pi = []
         self.root = None
-        self.result = 0
-        self.result_string = None
-        self.resign_threshold = -abs(resign_threshold)
         super().__init__()
 
     def initialize_game(self, position=None):
         if position is None:
             position = go.Position()
         self.root = MCTSNode(position)
-        self.result = 0
-        self.result_string = None
         self.comments = []
         self.searches_pi = []
         self.qs = []
@@ -130,17 +113,15 @@ class MCTSPlayerMixin:
           - Makes the node associated with this move the root, for future
             `inject_noise` calls.
         '''
-        if not self.two_player_mode:
-            self.searches_pi.append(
-                self.root.children_as_pi(self.root.position.n < self.temp_threshold))
+        self.searches_pi.append(
+            self.root.children_as_pi(self.root.position.n < self.temp_threshold))
         self.qs.append(self.root.Q)  # Save our resulting Q.
         self.comments.append(self.root.describe())
         try:
-            self.root = self.root.maybe_add_child(coords.to_flat(c))
+            self.root = self.root.maybe_add_child(c)
         except go.IllegalMove:
             print("Illegal move")
-            if not self.two_player_mode:
-                self.searches_pi.pop()
+            self.searches_pi.pop()
             self.qs.pop()
             self.comments.pop()
             return False
@@ -161,7 +142,7 @@ class MCTSPlayerMixin:
             selection = random.random()
             fcoord = cdf.searchsorted(selection)
             assert self.root.child_N[fcoord] != 0
-        return coords.from_flat(fcoord)
+        return fcoord
 
     def tree_search(self, num_parallel=None):
         if num_parallel is None:
@@ -175,16 +156,13 @@ class MCTSPlayerMixin:
                 print(self.show_path_to_root(leaf))
             # if game is over, override the value estimate with the true score
             if leaf.is_done():
-                value = 1 if leaf.position.score() > 0 else -1
-                leaf.backup_value(value, up_to=self.root)
+                leaf.backup_value(leaf.position.score(), up_to=self.root)
                 continue
-            leaf.add_virtual_loss(up_to=self.root)
             leaves.append(leaf)
         if leaves:
             move_probs, values = self.network.run_many(
                 [leaf.position for leaf in leaves])
             for leaf, move_prob, value in zip(leaves, move_probs, values):
-                leaf.revert_virtual_loss(up_to=self.root)
                 leaf.incorporate_results(move_prob, value, up_to=self.root)
         return leaves
 
@@ -194,73 +172,18 @@ class MCTSPlayerMixin:
         if len(pos.recent) == 0:
             return
 
-        def fmt(move): return "{}-{}".format('b' if move.color == 1 else 'w',
-                                             coords.to_kgs(move.move))
-        path = " ".join(fmt(move) for move in pos.recent[-diff:])
+        path = " ".join(str(move) for move in pos.recent[-diff:])
         if node.position.n >= MAX_DEPTH:
             path += " (depth cutoff reached) %0.1f" % node.position.score()
         elif node.position.is_game_over():
             path += " (game over) %0.1f" % node.position.score()
         return path
 
-    def should_resign(self):
-        '''Returns true if the player resigned.  No further moves should be played'''
-        return self.root.Q_perspective < self.resign_threshold
-
-    def set_result(self, winner, was_resign):
-        self.result = winner
-        if was_resign:
-            string = "B+R" if winner == go.BLACK else "W+R"
-        else:
-            string = self.root.position.result_string()
-        self.result_string = string
-
-    def to_sgf(self, use_comments=True):
-        assert self.result_string is not None
-        pos = self.root.position
-        if use_comments:
-            comments = self.comments or ['No comments.']
-            comments[0] = ("Resign Threshold: %0.3f\n" %
-                           self.resign_threshold) + comments[0]
-        else:
-            comments = []
-        return sgf_wrapper.make_sgf(pos.recent, self.result_string,
-                                    white_name=os.path.basename(
-                                        self.network.save_file) or "Unknown",
-                                    black_name=os.path.basename(
-                                        self.network.save_file) or "Unknown",
-                                    comments=comments)
-
     def is_done(self):
-        return self.result != 0 or self.root.is_done()
+        return self.root.is_done()
 
     def extract_data(self):
         assert len(self.searches_pi) == self.root.position.n
-        assert self.result != 0
-        for pwc, pi in zip(go.replay_position(self.root.position, self.result),
+        for pwc, pi in zip(go.replay_position(self.root.position, self.root.position.score()),
                            self.searches_pi):
             yield pwc.position, pi, pwc.result
-
-    def chat(self, msg_type, sender, text):
-        default_response = "Supported commands are 'winrate', 'nextplay', 'fortune', and 'help'."
-        if self.root is None or self.root.position.n == 0:
-            return "I'm not playing right now.  " + default_response
-
-        if 'winrate' in text.lower():
-            wr = (abs(self.root.Q) + 1.0) / 2.0
-            color = "Black" if self.root.Q > 0 else "White"
-            return "{:s} {:.2f}%".format(color, wr * 100.0)
-        elif 'nextplay' in text.lower():
-            return "I'm thinking... " + self.root.most_visited_path()
-        elif 'fortune' in text.lower():
-            return "You're feeling lucky!"
-        elif 'help' in text.lower():
-            return "I can't help much with go -- try ladders!  Otherwise: " + default_response
-        else:
-            return default_response
-
-
-class CGOSPlayerMixin(MCTSPlayerMixin):
-    def suggest_move(self, position):
-        self.seconds_per_move = time_recommendation(position.n)
-        return super().suggest_move(position)

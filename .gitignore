@@ -25,3 +25,4 @@ cc/tensorflow/
 
 minigui/static/*.js
 minigui/static/*.js.map
+.idea

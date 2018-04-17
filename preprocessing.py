@@ -18,10 +18,8 @@ import numpy as np
 import tensorflow as tf
 import random
 
-import coords
 import features as features_lib
 import go
-import sgf_wrapper
 
 TF_RECORD_CONFIG = tf.python_io.TFRecordOptions(
     tf.python_io.TFRecordCompressionType.ZLIB)
@@ -30,7 +28,7 @@ TF_RECORD_CONFIG = tf.python_io.TFRecordOptions(
 # where it started; this and the interleave parameters in preprocessing can give
 # us an approximation of a uniform sampling.  The default of 4M is used in
 # training, but smaller numbers can be used for aggregation or validation.
-SHUFFLE_BUFFER_SIZE = int(2*1e6)
+SHUFFLE_BUFFER_SIZE = int(2*1e4)
 
 # Constructing tf.Examples
 
@@ -51,7 +49,10 @@ def make_tf_example(features, pi, value):
     return tf.train.Example(features=tf.train.Features(feature={
         'x': tf.train.Feature(
             bytes_list=tf.train.BytesList(
-                value=[features.tostring()])),
+                value=[features[0].tostring()])),
+        'r': tf.train.Feature(
+            float_list=tf.train.FloatList(
+                value=[features[1]])),
         'pi': tf.train.Feature(
             bytes_list=tf.train.BytesList(
                 value=[pi.tostring()])),
@@ -89,19 +90,24 @@ def batch_parse_tf_example(batch_size, example_batch):
     '''
     features = {
         'x': tf.FixedLenFeature([], tf.string),
+        'r': tf.FixedLenFeature([], tf.float32),
         'pi': tf.FixedLenFeature([], tf.string),
         'outcome': tf.FixedLenFeature([], tf.float32),
     }
     parsed = tf.parse_example(example_batch, features)
-    x = tf.decode_raw(parsed['x'], tf.uint8)
+    x = tf.decode_raw(parsed['x'], tf.float32)
     x = tf.cast(x, tf.float32)
-    x = tf.reshape(x, [batch_size, go.N, go.N,
-                       features_lib.NEW_FEATURES_PLANES])
+    x = tf.reshape(x, [batch_size, go.N, 1])
+    r = parsed['r']
+    r.set_shape([batch_size])
     pi = tf.decode_raw(parsed['pi'], tf.float32)
-    pi = tf.reshape(pi, [batch_size, go.N * go.N + 1])
+    pi = tf.reshape(pi, [batch_size, go.M])
     outcome = parsed['outcome']
     outcome.set_shape([batch_size])
-    return (x, {'pi_tensor': pi, 'value_tensor': outcome})
+    return ({'pos_tensor': x, 'remain_tensor': r},
+        {'pi_tensor': pi,
+        'value_tensor': outcome,
+    })
 
 
 def read_tf_records(batch_size, tf_records, num_repeats=None,
@@ -183,19 +189,6 @@ def make_dataset_from_selfplay(data_extracts):
     tf_examples = (make_tf_example(features_lib.extract_features(pos), pi, result)
                    for pos, pi, result in data_extracts)
     return tf_examples
-
-
-def make_dataset_from_sgf(sgf_filename, tf_record):
-    pwcs = sgf_wrapper.replay_sgf_file(sgf_filename)
-    tf_examples = map(_make_tf_example_from_pwc, pwcs)
-    write_tf_examples(tf_record, tf_examples)
-
-
-def _make_tf_example_from_pwc(position_w_context):
-    features = features_lib.extract_features(position_w_context.position)
-    pi = _one_hot(coords.to_flat(position_w_context.next_move))
-    value = position_w_context.result
-    return make_tf_example(features, pi, value)
 
 
 def shuffle_tf_examples(gather_size, records_to_shuffle):

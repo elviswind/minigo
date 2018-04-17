@@ -18,29 +18,23 @@ This helps the intermediate layers extract concepts that are relevant to both
 move prediction and score estimation.
 """
 
-import collections
 import functools
 import math
 import numpy as np
 import os.path
-import itertools
-import sys
 import tensorflow as tf
 from tensorflow.python.training.summary_io import SummaryWriterCache
-from tqdm import tqdm
-from typing import Dict
 
 import features
 import preprocessing
-import symmetries
 import go
 
 # How many positions to look at per generation.
 # Per AGZ, 2048 minibatch * 1k = 2M positions/generation
-EXAMPLES_PER_GENERATION = 2000000
+EXAMPLES_PER_GENERATION = 150000
 
 # How many positions can fit on a graphics card. 256 for 9s, 16 or 32 for 19s.
-TRAIN_BATCH_SIZE = 16
+TRAIN_BATCH_SIZE = 1
 
 
 class DualNetwork():
@@ -80,16 +74,16 @@ class DualNetwork():
         return probs[0], values[0]
 
     def run_many(self, positions, use_random_symmetry=True):
-        processed = list(map(features.extract_features, positions))
-        if use_random_symmetry:
-            syms_used, processed = symmetries.randomize_symmetries_feat(
-                processed)
+        processed = []
+        remain = []
+        for p in positions:
+            a, b = features.extract_features(p)
+            processed.append(a)
+            remain.append(b)
         outputs = self.sess.run(self.inference_output,
-                                feed_dict={self.inference_input: processed})
+                                feed_dict={self.inference_input['pos_tensor']: processed,
+                                           self.inference_input['remain_tensor']: remain})
         probabilities, value = outputs['policy_output'], outputs['value_output']
-        if use_random_symmetry:
-            probabilities = symmetries.invert_symmetries_pi(
-                syms_used, probabilities)
         return probabilities, value
 
 
@@ -97,10 +91,14 @@ def get_inference_input():
     """Set up placeholders for input features/labels.
 
     Returns the feature, output tensors that get passed into model_fn."""
-    return (tf.placeholder(tf.float32,
-                           [None, go.N, go.N, features.NEW_FEATURES_PLANES],
+    return ({'pos_tensor':tf.placeholder(tf.float32,
+                           [None, go.N, 1],
                            name='pos_tensor'),
-            {'pi_tensor': tf.placeholder(tf.float32, [None, go.N * go.N + 1]),
+             'remain_tensor': tf.placeholder(tf.float32,
+                                             [None],
+                                             name='remain_tensor')
+             },
+            {'pi_tensor': tf.placeholder(tf.float32, [None, go.M]),
              'value_tensor': tf.placeholder(tf.float32, [None])})
 
 
@@ -167,15 +165,18 @@ def model_fn(features, labels, mode, params, config=None):
     my_conv2d = functools.partial(
         tf.layers.conv2d,
         filters=params['k'], kernel_size=[3, 3], padding="same")
+    my_conv1d = functools.partial(
+        tf.layers.conv1d,
+        filters=params['k'], kernel_size=[3], padding="same")
 
     def my_res_layer(inputs):
-        int_layer1 = my_batchn(my_conv2d(inputs))
+        int_layer1 = my_batchn(my_conv1d(inputs))
         initial_output = tf.nn.relu(int_layer1)
-        int_layer2 = my_batchn(my_conv2d(initial_output))
+        int_layer2 = my_batchn(my_conv1d(initial_output))
         output = tf.nn.relu(inputs + int_layer2)
         return output
 
-    initial_output = tf.nn.relu(my_batchn(my_conv2d(features)))
+    initial_output = tf.nn.relu(my_batchn(my_conv1d(features['pos_tensor'])))
 
     # the shared stack
     shared_output = initial_output
@@ -184,20 +185,20 @@ def model_fn(features, labels, mode, params, config=None):
 
     # policy head
     policy_conv = tf.nn.relu(my_batchn(
-        my_conv2d(shared_output, filters=2, kernel_size=[1, 1]),
+        my_conv1d(shared_output, filters=2, kernel_size=[1]),
         center=False, scale=False))
     logits = tf.layers.dense(
-        tf.reshape(policy_conv, [-1, go.N * go.N * 2]),
-        go.N * go.N + 1)
+        tf.concat([tf.reshape(policy_conv, [-1, go.N * 2]), tf.reshape(features['remain_tensor'], [-1, 1])], 1),
+        go.M)
 
     policy_output = tf.nn.softmax(logits, name='policy_output')
 
     # value head
     value_conv = tf.nn.relu(my_batchn(
-        my_conv2d(shared_output, filters=1, kernel_size=[1, 1]),
+        my_conv1d(shared_output, filters=1, kernel_size=[1]),
         center=False, scale=False))
     value_fc_hidden = tf.nn.relu(tf.layers.dense(
-        tf.reshape(value_conv, [-1, go.N * go.N]),
+        tf.concat([tf.reshape(value_conv, [-1, go.N]), tf.reshape(features['remain_tensor'], [-1, 1])], 1),
         params['fc_width']))
     value_output = tf.nn.tanh(
         tf.reshape(tf.layers.dense(value_fc_hidden, 1), [-1]),
@@ -239,7 +240,9 @@ def model_fn(features, labels, mode, params, config=None):
     # That way, they get logged automatically during training
     for metric_name, metric_op in metric_ops.items():
         tf.summary.scalar(metric_name, metric_op[1])
-
+    tf.summary.histogram('value_dist', value_output,
+                         collections=None,
+                         family=None)
     return tf.estimator.EstimatorSpec(
         mode=mode,
         predictions={
