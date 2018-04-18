@@ -104,7 +104,7 @@ def bootstrap():
     main.bootstrap(ESTIMATOR_WORKING_DIR, bootstrap_model_path)
 
 
-def selfplay(readouts=400, verbose=1, resign_threshold=0.99):
+def selfplay(readouts=1600, verbose=1, resign_threshold=0.99):
     _, model_name = get_latest_model()
     os.makedirs(os.path.join(SELFPLAY_DIR, model_name), exist_ok=True)
     games = gfile.Glob(os.path.join(SELFPLAY_DIR, model_name, '*.zz'))
