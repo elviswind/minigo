@@ -29,12 +29,12 @@ import sys
 MAX_DEPTH = 30
 
 # Exploration constant
-c_PUCT = 1.38
+c_PUCT = 1.80
 
 # Dirichlet noise, as a function of go.N
 
 
-def D_NOISE_ALPHA(): return 0.03 * 361 / (go.N ** 2)
+def D_NOISE_ALPHA(): return 0.025
 
 
 class DummyNode(object):

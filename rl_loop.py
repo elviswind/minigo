@@ -24,7 +24,6 @@ import time
 from utils import timer
 from tensorflow import gfile
 
-BOARD_SIZE = os.environ['BOARD_SIZE']
 BASE_DIR = "."
 MODELS_DIR = os.path.join(BASE_DIR, 'models')
 SELFPLAY_DIR = os.path.join(BASE_DIR, 'data/selfplay')
@@ -50,7 +49,6 @@ def print_flags():
         'SGF_DIR': SGF_DIR,
         'TRAINING_CHUNK_DIR': TRAINING_CHUNK_DIR,
         'ESTIMATOR_WORKING_DIR': ESTIMATOR_WORKING_DIR,
-        'BOARD_SIZE': BOARD_SIZE,
     }
     print("Computed variables are:")
     print('\n'.join('--{}={}'.format(flag, value)

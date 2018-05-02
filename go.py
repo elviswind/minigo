@@ -4,9 +4,23 @@ import pandas
 
 df = pandas.read_csv('d.csv', index_col=0)
 d = df.as_matrix().astype(np.float32)
-d = np.concatenate([d, d * -1], axis=0)
+ndf = np.ones((df.shape[0], df.shape[1] + 1)).astype(np.float32)
+for i in range(1, ndf.shape[1]):
+    ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
+
+# d = np.concatenate([d, d * -1], axis=0)
 names = df.index
-names = list(names) + ['-1' + n for n in names]
+# names = list(names) + ['-1' + n for n in names]
+
+l = d.shape[0]
+cor = np.ones([l, l])
+for i in range(l):
+    for j in range(i + 1, l):
+        s = (d[i] * d[j]).sum()
+        cor[i][j] = s
+        cor[j][i] = s
+
+d = ndf
 M = len(d) + 1
 N = d.shape[1]
 EMPTY_BOARD = np.zeros([N], dtype=np.float32)
@@ -44,30 +58,10 @@ class Position():
             legal_moves[:arr[-1] + 1] = 0
 
         for a in arr:
-            if a < M / 2:
-                legal_moves[int(a + M / 2)] = 0
-            elif a >= M / 2:
-                legal_moves[int(a - M / 2)] = 0
+            legal_moves[list(np.abs(cor[a]) > 0.75) + [False]] = 0
 
         if len(arr) < 5:
             legal_moves[-1] = 0
-
-        forex = 66
-        for a in arr:
-            if a < forex:
-                b = names[a][:3]
-                c = names[a][-3:]
-                for i in range(forex):
-                    if b in names[i] or c in names[i]:
-                        legal_moves[i] = 0
-                        legal_moves[int(i + M / 2)] = 0
-            elif a < forex + M / 2 and a >= (M - 1) / 2:
-                b = names[a][2:5]
-                c = names[a][-3:]
-                for i in range(forex):
-                    if b in names[int(i + M / 2)] or c in names[int(i + M / 2)]:
-                        legal_moves[i] = 0
-                        legal_moves[int(i + M / 2)] = 0
 
         return legal_moves
 
@@ -85,7 +79,13 @@ class Position():
     def score(self):
         if self.remain > 5:
             return -1
-        score = 2 * (0.3 - np.std(self.board))
+
+        x = np.arange(N)
+        s = self.board / self.board[0]
+        (a, b) = np.polyfit(x, s, 1)
+        y = x * a + b
+        mse = ((y - s) ** 2).sum() / N
+        score = 1 - mse * 100
         if score < -1:
             return -1
         elif score > 1:
@@ -95,7 +95,7 @@ class Position():
     def report(self):
         score = self.score()
         dump = str(np.array(names)[np.where(self.selected[:-1] == 1)])
-        if score > 0.2:
+        if score > 0.8:
             with open('log.txt', 'a') as log:
                 log.write(str(score) + ' ---- ' + dump + '\n')
         print(dump)
