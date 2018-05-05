@@ -123,7 +123,7 @@ def get_default_hyperparams(**overrides):
       l2_strength: The L2 regularization parameter.
       momentum: The momentum parameter for training
     """
-    k = _round_power_of_two(go.N * 2 / 3)  # width of each layer
+    k = _round_power_of_two(go.N)  # width of each layer
     hparams = {
         'k': k,  # Width of each conv layer
         'fc_width': 2 * k,  # Width of each fully connected layer
