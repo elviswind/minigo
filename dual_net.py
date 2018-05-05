@@ -123,11 +123,11 @@ def get_default_hyperparams(**overrides):
       l2_strength: The L2 regularization parameter.
       momentum: The momentum parameter for training
     """
-    k = _round_power_of_two(go.N ** 2 / 3)  # width of each layer
+    k = _round_power_of_two(go.N * 2 / 3)  # width of each layer
     hparams = {
         'k': k,  # Width of each conv layer
         'fc_width': 2 * k,  # Width of each fully connected layer
-        'num_shared_layers': go.N,  # Number of shared trunk layers
+        'num_shared_layers': go.N / 2,  # Number of shared trunk layers
         'l2_strength': 1e-4,  # Regularization strength
         'momentum': 0.9,  # Momentum used in SGD
     }

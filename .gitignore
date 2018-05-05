@@ -26,3 +26,6 @@ cc/tensorflow/
 minigui/static/*.js
 minigui/static/*.js.map
 .idea
+estimator_working_dir/
+models/
+.ipynb_checkpoints/
