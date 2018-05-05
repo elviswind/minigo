@@ -83,6 +83,8 @@ class Position():
         x = np.arange(N)
         s = self.board / self.board[0]
         (a, b) = np.polyfit(x, s, 1)
+        if a < 0:
+            return -1
         y = x * a + b
         mse = ((y - s) ** 2).sum() / N
         score = 1 - mse * 100
@@ -95,7 +97,7 @@ class Position():
     def report(self):
         score = self.score()
         dump = str(np.array(names)[np.where(self.selected[:-1] == 1)])
-        if score > 0.8:
+        if score > 0.75:
             with open('log.txt', 'a') as log:
                 log.write(str(score) + ' ---- ' + dump + '\n')
         print(dump)
