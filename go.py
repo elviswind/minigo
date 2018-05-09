@@ -3,14 +3,25 @@ import numpy as np
 import pandas
 
 df = pandas.read_csv('d.csv', index_col=0)
+
 d = df.as_matrix().astype(np.float32)
-ndf = np.ones((df.shape[0], df.shape[1] + 1)).astype(np.float32)
+ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
 for i in range(1, ndf.shape[1]):
     ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
 
-# d = np.concatenate([d, d * -1], axis=0)
-names = df.index
-# names = list(names) + ['-1' + n for n in names]
+# remove already added ones
+print(df.index[380])
+print(list(df.iloc[380, :].as_matrix()))
+INIT_BOARD = np.copy(ndf[380])
+print(INIT_BOARD)
+df.drop(df.index[380])
+
+d = df.as_matrix().astype(np.float32)
+ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
+for i in range(1, ndf.shape[1]):
+    ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
+
+names = list(df.index)
 
 l = d.shape[0]
 cor = np.ones([l, l])
@@ -23,7 +34,6 @@ for i in range(l):
 d = ndf
 M = len(d) + 1
 N = d.shape[1]
-EMPTY_BOARD = np.zeros([N], dtype=np.float32)
 
 
 class PositionWithContext(namedtuple('SgfPosition', ['position', 'next_move', 'result'])):
@@ -41,7 +51,7 @@ def replay_position(position, result):
 
 class Position():
     def __init__(self, board=None, select=None, n=0, remain=10, recent=None):
-        self.board = board if board is not None else np.copy(EMPTY_BOARD)
+        self.board = board if board is not None else np.copy(INIT_BOARD)
         self.selected = select if select is not None else np.zeros([M], dtype=np.float64)
         self.remain = remain
         self.n = n

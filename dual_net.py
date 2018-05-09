@@ -127,7 +127,7 @@ def get_default_hyperparams(**overrides):
     hparams = {
         'k': k,  # Width of each conv layer
         'fc_width': 2 * k,  # Width of each fully connected layer
-        'num_shared_layers': go.N / 2,  # Number of shared trunk layers
+        'num_shared_layers': int(go.N / 3 * 2),  # Number of shared trunk layers
         'l2_strength': 1e-4,  # Regularization strength
         'momentum': 0.9,  # Momentum used in SGD
     }
