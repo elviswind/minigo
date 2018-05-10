@@ -9,17 +9,18 @@ ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
 for i in range(1, ndf.shape[1]):
     ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
 
+INIT_BOARD = np.zeros(ndf.shape[1])
 # remove already added ones
-print(df.index[380])
-print(list(df.iloc[380, :].as_matrix()))
-INIT_BOARD = np.copy(ndf[380])
-print(INIT_BOARD)
-df.drop(df.index[380])
+# print(df.index[380])
+# print(list(df.iloc[380, :].as_matrix()))
+# INIT_BOARD = np.copy(ndf[380])
+# print(INIT_BOARD)
+# df.drop(df.index[380])
 
-d = df.as_matrix().astype(np.float32)
-ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
-for i in range(1, ndf.shape[1]):
-    ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
+# d = df.as_matrix().astype(np.float32)
+# ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
+# for i in range(1, ndf.shape[1]):
+#     ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
 
 names = list(df.index)
 
@@ -90,14 +91,17 @@ class Position():
         if self.remain > 5:
             return -1
 
-        x = np.arange(N)
-        s = self.board / self.board[0]
-        (a, b) = np.polyfit(x, s, 1)
-        if a < 0:
-            return -1
-        y = x * a + b
-        mse = ((y - s) ** 2).sum() / N
-        score = 1 - mse * 100
+        # x = np.arange(N)
+        # s = self.board / self.board[0]
+        # (a, b) = np.polyfit(x, s, 1)
+        # if a < 0:
+        #     return -1
+        # y = x * a + b
+        # mse = ((y - s) ** 2).sum() / N
+        # score = 1 - mse * 100
+
+        score = 1 - np.std(self.board)
+
         if score < -1:
             return -1
         elif score > 1:
