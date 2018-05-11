@@ -34,7 +34,7 @@ import go
 EXAMPLES_PER_GENERATION = 150000
 
 # How many positions can fit on a graphics card. 256 for 9s, 16 or 32 for 19s.
-TRAIN_BATCH_SIZE = 128
+TRAIN_BATCH_SIZE = 256
 
 
 class DualNetwork():
@@ -319,7 +319,7 @@ def train(working_dir, tf_records, generation_num, **hparams):
     update_ratio_hook = UpdateRatioSessionHook(working_dir)
     step_counter_hook = EchoStepCounterHook(output_dir=working_dir)
     estimator.train(input_fn, hooks=[
-                    update_ratio_hook, step_counter_hook], max_steps=max_steps)
+                    step_counter_hook], max_steps=max_steps)
 
 
 def validate(working_dir, tf_records, checkpoint_name=None, **hparams):

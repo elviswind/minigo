@@ -29,7 +29,7 @@ import sys
 MAX_DEPTH = 30
 
 # Exploration constant
-c_PUCT = 1.80
+c_PUCT = 2
 
 # Dirichlet noise, as a function of go.N
 
