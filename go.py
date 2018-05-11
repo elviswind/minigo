@@ -9,7 +9,7 @@ ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
 for i in range(1, ndf.shape[1]):
     ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
 
-INIT_BOARD = np.zeros(ndf.shape[1])
+INIT_BOARD = np.zeros(ndf.shape[1]).astype(np.float32)
 
 names = list(df.index)
 

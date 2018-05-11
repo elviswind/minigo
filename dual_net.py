@@ -319,7 +319,7 @@ def train(working_dir, tf_records, generation_num, **hparams):
     update_ratio_hook = UpdateRatioSessionHook(working_dir)
     step_counter_hook = EchoStepCounterHook(output_dir=working_dir)
     estimator.train(input_fn, hooks=[
-                    step_counter_hook], max_steps=max_steps)
+        update_ratio_hook, step_counter_hook], max_steps=max_steps)
 
 
 def validate(working_dir, tf_records, checkpoint_name=None, **hparams):
