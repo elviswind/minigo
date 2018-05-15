@@ -80,16 +80,15 @@ class Position():
         if self.remain > 5:
             return -1
 
-        # x = np.arange(N)
-        # s = self.board / self.board[0]
-        # (a, b) = np.polyfit(x, s, 1)
-        # if a < 0:
-        #     return -1
-        # y = x * a + b
-        # mse = ((y - s) ** 2).sum() / N
-        # score = 1 - mse * 100
-
-        score = 10 * (0.1 - np.std(self.board / self.n))
+        s = self.board / self.n
+        m = s.mean()
+        last = s[0] < m
+        reg = 0
+        for i in range(1, len(s)):
+            if (s[i] < m) != last:
+                reg += 1
+                last = s[i] < m
+        score = (reg - 30) / 20
 
         if score < -1:
             return -1
@@ -100,7 +99,7 @@ class Position():
     def report(self):
         score = self.score()
         dump = str(np.array(names)[np.where(self.selected[:-1] == 1)])
-        if score > 0.75:
+        if score > 0.5:
             with open('log.txt', 'a') as log:
                 log.write(str(score) + ' ---- ' + dump + '\n')
         print(dump)
