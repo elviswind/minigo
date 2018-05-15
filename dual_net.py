@@ -34,7 +34,7 @@ import go
 EXAMPLES_PER_GENERATION = 150000
 
 # How many positions can fit on a graphics card. 256 for 9s, 16 or 32 for 19s.
-TRAIN_BATCH_SIZE = 256
+TRAIN_BATCH_SIZE = 128
 
 
 class DualNetwork():

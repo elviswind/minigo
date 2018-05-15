@@ -4,24 +4,24 @@ import pandas
 
 df = pandas.read_csv('d.csv', index_col=0)
 
-d = df.as_matrix().astype(np.float32)
-ndf = np.ones((d.shape[0], d.shape[1] + 1)).astype(np.float32)
-for i in range(1, ndf.shape[1]):
-    ndf[:, i] = ndf[:, i - 1] * (df[str(i - 1)] + 1)
-
-INIT_BOARD = np.zeros(ndf.shape[1]).astype(np.float32)
-
-names = list(df.index)
-
-l = d.shape[0]
+a = df.iloc[:, :-1]
+b = df.iloc[:, 1:]
+b.columns = a.columns = range(df.shape[1] - 1)
+r = (b - a) / a
+p = 1 / np.linalg.norm(r, axis=1)
+r = (r.T * p).T.as_matrix()
+l = r.shape[0]
 cor = np.ones([l, l])
 for i in range(l):
     for j in range(i + 1, l):
-        s = (d[i] * d[j]).sum()
+        s = (r[i] * r[j]).sum()
         cor[i][j] = s
         cor[j][i] = s
 
-d = ndf
+d = df.as_matrix().astype(np.float32)
+INIT_BOARD = np.zeros(d.shape[1]).astype(np.float32)
+
+names = list(df.index)
 M = len(d) + 1
 N = d.shape[1]
 
@@ -89,7 +89,7 @@ class Position():
         # mse = ((y - s) ** 2).sum() / N
         # score = 1 - mse * 100
 
-        score = 1 - np.std(self.board)
+        score = 10 * (0.1 - np.std(self.board / self.n))
 
         if score < -1:
             return -1

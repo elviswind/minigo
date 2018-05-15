@@ -123,7 +123,7 @@ def selfplay(
             player = selfplay_mcts.play(
                 network, readouts, verbose)
 
-        output_name = '{}-{}'.format(int(time.time()), socket.gethostname())
+        output_name = '{}-{}-{}'.format(int(time.time()), i, socket.gethostname())
         game_data = player.extract_data()
         tf_examples = preprocessing.make_dataset_from_selfplay(game_data)
         fname = os.path.join(output_dir, "{}.tfrecord.zz".format(output_name))
