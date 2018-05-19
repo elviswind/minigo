@@ -18,7 +18,7 @@ for i in range(l):
         cor[i][j] = s
         cor[j][i] = s
 
-d = df.as_matrix().astype(np.float32)
+d = (df.as_matrix().T * p).T.astype(np.float32)
 INIT_BOARD = np.zeros(d.shape[1]).astype(np.float32)
 
 names = list(df.index)
