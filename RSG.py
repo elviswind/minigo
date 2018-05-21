@@ -27,10 +27,12 @@ def findDist(n):
     found = 0
     while found < 30:
         choice = random.sample(range(d.shape[0]), n)
+        if 372 not in choice:
+            choice = choice + [372]
         bad = True
         while bad:
             bad = False
-            for k in range(n):
+            for k in range(len(choice)):
                 for l in range(k):
                     if np.abs(cor[choice[k]][choice[l]]) > 0.75:
                         bad = True
@@ -39,30 +41,42 @@ def findDist(n):
                     break
             if bad:
                 choice = random.sample(range(d.shape[0]), n)
+                if 372 not in choice:
+                    choice = choice + [372]
 
         s = d[choice].sum(axis=0)
         s = s / n
         m = s.mean()
-        last = s[0] < m
+        s = s / m
+        x = np.arange(len(s)) + 1
+        a, b = np.polyfit(x, np.log(s), 1)
+        y = np.exp(a * x + b)
+        last = s[0] < y[0]
         reg = 0
         for i in range(1, len(s)):
-            if (s[i] < m) != last:
+            if (s[i] < y[i]) != last:
                 reg += 1
-                last = s[i] < m
-        score = reg
+                last = s[i] < y[i]
 
-        if score >= 35:
+        if reg >= 35:
             with open('samples.txt', 'a') as log:
-                log.write(str([sorted(choice), (score - 30) / 20]) + '\n')
+                weight = np.ones(len(s))
+                weight[-30:] = 4
+                tolog = str([sorted(choice), (reg - 30) / 20, (((y - s) * weight) ** 2).sum()])
+                print(tolog)
+                log.write(tolog + '\n')
             found += 1
-        data.append(score)
+        data.append(reg)
 
     return data
 
+
 while True:
-    findDist(5)
-    findDist(6)
-    findDist(7)
-    findDist(8)
-    findDist(9)
-    findDist(10)
+    findDist(3)
+    findDist(4)
+    #findDist(5)
+    #findDist(6)
+    #findDist(7)
+    #findDist(8)
+    #findDist(9)
+    #findDist(10)
