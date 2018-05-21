@@ -23,12 +23,11 @@ import random
 
 
 def findDist(n):
-    data = []
     found = 0
     while found < 30:
         choice = random.sample(range(d.shape[0]), n)
-        if 372 not in choice:
-            choice = choice + [372]
+        # if 372 not in choice:
+        #     choice = choice + [372]
         bad = True
         while bad:
             bad = False
@@ -41,8 +40,8 @@ def findDist(n):
                     break
             if bad:
                 choice = random.sample(range(d.shape[0]), n)
-                if 372 not in choice:
-                    choice = choice + [372]
+                # if 372 not in choice:
+                #     choice = choice + [372]
 
         s = d[choice].sum(axis=0)
         s = s / n
@@ -51,36 +50,45 @@ def findDist(n):
         x = np.arange(len(s)) + 1
         a, b = np.polyfit(x, np.log(s), 1)
         y = np.exp(a * x + b)
+
+        # reg times
         last = s[0] < y[0]
         reg = 0
+        regDist = [0]
         for i in range(1, len(s)):
             if (s[i] < y[i]) != last:
+                regDist.append(i)
                 reg += 1
                 last = s[i] < y[i]
 
-        if reg >= 35:
-            weight = np.ones(len(s))
-            weight[-30:] = 4
-            loss = (((y - s) * weight) ** 2).sum()
-            if loss < 1:
-                with open('samples.txt', 'a') as log:
-                    tolog = str([sorted(choice), loss])
-                    print(tolog)
-                    log.write(tolog + '\n')
-            found += 1
-        data.append(reg)
+        # reg distribution
+        regDist = np.array(regDist)
+        regStd = (regDist[1:] - regDist[:-1]).std()
 
-    return data
+        # # dropback
+        # i = np.argmax(np.maximum.accumulate(s) - s)  # end of the period
+        # j = np.argmax(s[:i])  # start of period
+        # drop = 1 - s[i] / s[j] + 0.000001
+        #
+        # # 拟合损失
+        # weight = np.ones(len(s))
+        # weight[-30:] = 4
+        # loss = (((y - s) * weight) ** 2).sum()
+
+        if reg > 35 and regStd < 2:
+            with open('samples.txt', 'a') as log:
+                tolog = str([sorted(choice), regStd, reg])
+                print(tolog)
+                log.write(tolog + '\n')
+            found += 1
 
 
 while True:
-    findDist(3)
+    # findDist(3)
     findDist(4)
     findDist(5)
     findDist(6)
-    #findDist(5)
-    #findDist(6)
-    #findDist(7)
-    #findDist(8)
-    #findDist(9)
-    #findDist(10)
+    # findDist(7)
+    # findDist(8)
+    # findDist(9)
+    # findDist(10)
