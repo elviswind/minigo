@@ -52,15 +52,17 @@ def findDist(n):
         score = reg
 
         if score >= 35:
-            print([sorted(choice), (score - 30) / 20])
+            with open('samples.txt', 'a') as log:
+                log.write(str([sorted(choice), (score - 30) / 20]) + '\n')
             found += 1
         data.append(score)
 
     return data
 
-findDist(5)
-findDist(6)
-findDist(7)
-findDist(8)
-findDist(9)
-findDist(10)
+while True:
+    findDist(5)
+    findDist(6)
+    findDist(7)
+    findDist(8)
+    findDist(9)
+    findDist(10)
