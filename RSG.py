@@ -2,6 +2,7 @@ import pandas
 import numpy as np
 
 df = pandas.read_csv('d.csv', index_col=0)
+
 a = df.iloc[:, :-1]
 b = df.iloc[:, 1:]
 b.columns = a.columns = range(df.shape[1] - 1)
@@ -16,7 +17,7 @@ for i in range(l):
         cor[i][j] = s
         cor[j][i] = s
 
-d = (df.as_matrix().astype(np.float32).T * p).T
+d = (df.as_matrix().T * p).T.astype(np.float32)
 
 import random
 
@@ -31,7 +32,7 @@ def findDist(n):
             bad = False
             for k in range(n):
                 for l in range(k):
-                    if np.abs(cor[k][l]) > 0.75:
+                    if np.abs(cor[choice[k]][choice[l]]) > 0.75:
                         bad = True
                         break
                 if bad:
