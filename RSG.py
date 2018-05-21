@@ -59,12 +59,14 @@ def findDist(n):
                 last = s[i] < y[i]
 
         if reg >= 35:
-            with open('samples.txt', 'a') as log:
-                weight = np.ones(len(s))
-                weight[-30:] = 4
-                tolog = str([sorted(choice), (reg - 30) / 20, (((y - s) * weight) ** 2).sum()])
-                print(tolog)
-                log.write(tolog + '\n')
+            weight = np.ones(len(s))
+            weight[-30:] = 4
+            loss = (((y - s) * weight) ** 2).sum()
+            if loss < 1:
+                with open('samples.txt', 'a') as log:
+                    tolog = str([sorted(choice), loss])
+                    print(tolog)
+                    log.write(tolog + '\n')
             found += 1
         data.append(reg)
 
@@ -74,6 +76,8 @@ def findDist(n):
 while True:
     findDist(3)
     findDist(4)
+    findDist(5)
+    findDist(6)
     #findDist(5)
     #findDist(6)
     #findDist(7)
