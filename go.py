@@ -107,7 +107,6 @@ class Position():
         regStd = (regDist[1:] - regDist[:-1]).std()
 
         score = 2 - regStd
-        print(reg, score)
 
         if reg <= 20:
             score = -1
