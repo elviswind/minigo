@@ -25,6 +25,9 @@ names = list(df.index)
 M = len(d) + 1
 N = d.shape[1]
 
+MAX = 6
+MIN = 4
+
 
 class PositionWithContext(namedtuple('SgfPosition', ['position', 'next_move', 'result'])):
     pass
@@ -40,7 +43,7 @@ def replay_position(position, result):
 
 
 class Position():
-    def __init__(self, board=None, select=None, n=0, remain=10, recent=None):
+    def __init__(self, board=None, select=None, n=0, remain=MAX, recent=None):
         self.board = board if board is not None else np.copy(INIT_BOARD)
         self.selected = select if select is not None else np.zeros([M], dtype=np.float64)
         self.remain = remain
@@ -60,13 +63,15 @@ class Position():
         for a in arr:
             legal_moves[list(np.abs(cor[a]) > 0.75) + [False]] = 0
 
-        if len(arr) < 5:
+        if len(arr) < MIN:
             legal_moves[-1] = 0
 
         return legal_moves
 
     def play_move(self, choice):
         s = np.copy(self.selected)
+        if (self.all_legal_moves()[choice] == 0):
+            print('playing bad move')
         s[choice] = 1
         if choice == M - 1:
             return Position(self.board, s, self.n + 1, 0, self.recent + [choice])
@@ -77,23 +82,41 @@ class Position():
         return self.remain == 0 or len(np.where(self.all_legal_moves() == 1)[0]) == 0
 
     def score(self):
-        if self.remain > 5:
+        if self.remain > MAX - MIN:
             return -1
 
         s = self.board / self.n
         m = s.mean()
-        last = s[0] < m
-        reg = 0
-        for i in range(1, len(s)):
-            if (s[i] < m) != last:
-                reg += 1
-                last = s[i] < m
-        score = (reg - 30) / 20
+        s = s / m
+        x = np.arange(len(s)) + 1
+        a, b = np.polyfit(x, np.log(s), 1)
+        y = np.exp(a * x + b)
 
-        if score < -1:
-            return -1
-        elif score > 1:
-            return 1
+        # reg times
+        last = s[0] < y[0]
+        reg = 0
+        regDist = [0]
+        for i in range(1, len(s)):
+            if (s[i] < y[i]) != last:
+                regDist.append(i)
+                reg += 1
+                last = s[i] < y[i]
+
+        # reg distribution
+        regDist = np.array(regDist)
+        regStd = (regDist[1:] - regDist[:-1]).std()
+
+        score = 2 - regStd
+        print(reg, score)
+
+        if reg <= 20:
+            score = -1
+
+        if score > 1:
+            score = 1
+        elif score < -1:
+            score = -1
+
         return score
 
     def report(self):
