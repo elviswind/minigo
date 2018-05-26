@@ -2,13 +2,13 @@ import pandas
 import numpy as np
 
 df = pandas.read_csv('d.csv', index_col=0)
-
+df = df.filter(like='ETF', axis=0)
 a = df.iloc[:, :-1]
 b = df.iloc[:, 1:]
 b.columns = a.columns = range(df.shape[1] - 1)
 r = (b - a) / a
 p = 1 / np.linalg.norm(r, axis=1)
-r = (r.T * p).T.as_matrix()
+r = (r.T * p).T.values
 l = r.shape[0]
 cor = np.ones([l, l])
 for i in range(l):
@@ -17,7 +17,9 @@ for i in range(l):
         cor[i][j] = s
         cor[j][i] = s
 
-d = (df.as_matrix().T * p).T.astype(np.float32)
+d = df.values.astype(np.float32).T * p
+p = p / d[0]
+d = (d / d[0]).T
 
 import random
 
@@ -65,19 +67,19 @@ def findDist(n):
         regDist = np.array(regDist)
         regStd = (regDist[1:] - regDist[:-1]).std()
 
-        # # dropback
-        # i = np.argmax(np.maximum.accumulate(s) - s)  # end of the period
-        # j = np.argmax(s[:i])  # start of period
-        # drop = 1 - s[i] / s[j] + 0.000001
-        #
-        # # 拟合损失
-        # weight = np.ones(len(s))
-        # weight[-30:] = 4
-        # loss = (((y - s) * weight) ** 2).sum()
+        # dropback
+        i = np.argmax(np.maximum.accumulate(s) - s)  # end of the period
+        j = np.argmax(s[:i])  # start of period
+        drop = 1 - s[i] / s[j] + 0.000001
 
-        if reg > 35 and regStd < 2:
+        # 拟合损失
+        weight = np.ones(len(s))
+        weight[-30:] = 4
+        loss = (((y - s) * weight) ** 2).sum()
+
+        if reg > 35 and regStd < 2 and drop < 0.1:
             with open('samples.txt', 'a') as log:
-                tolog = str([sorted(choice), regStd, reg])
+                tolog = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(str(sorted(choice)), regStd, reg, drop, a, loss, a / loss)
                 print(tolog)
                 log.write(tolog + '\n')
             found += 1

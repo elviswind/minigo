@@ -106,21 +106,21 @@ class Position():
         regDist = np.array(regDist)
         regStd = (regDist[1:] - regDist[:-1]).std()
 
-        score = 2 - regStd
+        score = 1 - regStd / 2.22
 
         if reg <= 20:
             score = -1
 
-        if score > 1:
-            score = 1
-        elif score < -1:
-            score = -1
+        # if score > 1:
+        #     score = 1
+        # elif score < -1:
+        #     score = -1
 
         return score
 
     def report(self):
         score = self.score()
-        dump = str(np.array(names)[np.where(self.selected[:-1] == 1)])
+        dump = str(list(np.array(names)[np.where(self.selected[:-1] == 1)]))
         if score > 0.5:
             with open('log.txt', 'a') as log:
                 log.write(str(score) + ' ---- ' + dump + '\n')
