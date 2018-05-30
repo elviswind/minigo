@@ -17,9 +17,9 @@ for i in range(l):
         cor[i][j] = s
         cor[j][i] = s
 
-d = df.values.astype(np.float32).T * p
-p = p / d[0]
-d = (d / d[0]).T
+base = 10
+d = np.concatenate((np.ones([r.shape[0], 1]) * base,
+                    np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1)
 
 import random
 
@@ -74,10 +74,10 @@ def findDist(n):
 
         # 拟合损失
         weight = np.ones(len(s))
-        weight[-30:] = 4
         loss = (((y - s) * weight) ** 2).sum()
 
-        if reg > 35 and regStd < 2 and drop < 0.1:
+        #if reg > 35 and regStd < 2 and drop < 0.1:
+        if a / loss > 0.35:
             with open('samples.txt', 'a') as log:
                 tolog = "{}\t{}\t{}\t{}\t{}\t{}\t{}".format(str(sorted(choice)), regStd, reg, drop, a, loss, a / loss)
                 print(tolog)
