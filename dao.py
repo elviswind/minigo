@@ -1,5 +1,6 @@
 import pandas
 import numpy as np
+import utils
 
 
 def get_d():
@@ -36,22 +37,21 @@ M = d.shape[0] + 1
 
 
 def find_eligible(got):
-    if len(got) == 0: return list(range(d.shape[0])) + [d.shape[0]]
+    if len(got) == 0: return list(range(d.shape[0]))
     origin = eligible[got[0]]
     for i in range(1, len(got)):
         origin = np.logical_and(eligible[got[i]], origin)
     return np.where(origin)[0].tolist() + [d.shape[0]]
 
 
-def factorial_random(got, n, network):
-    if len(got) < n:
+def factorial_random(got, network):
+    if d.shape[0] in got or len(got) == 10:
+        return got
+    else:
         fine = find_eligible(got)
-        print(fine)
         p = get_p(network, got)[fine]
         i = np.random.choice(fine, 1, p=p / p.sum())[0]
-        return factorial_random(got + [i], n, network)
-    else:
-        return got
+        return factorial_random(got + [i], network)
 
 
 def test_choice(choice):
@@ -69,9 +69,12 @@ def test_choice(choice):
 
 def random_test(network):
     gathered = []
-    while len(gathered) < 10:
-        choice = factorial_random([], 10, network)
-        gathered.append(test_choice(choice))
+    with utils.logged_timer("start selfplay"):
+        while len(gathered) < 100:
+            choice = factorial_random([], network)
+            if d.shape[0] in choice:
+                choice.remove(d.shape[0])
+            gathered.append(test_choice(choice))
     output = np.array(sorted(gathered, key=lambda x: x[3]))
     return output
 
