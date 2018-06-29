@@ -161,6 +161,20 @@ def selfplay(
     preprocessing.write_tf_examples(fname, tf_examples)
 
 
+def selfplay2(load_file: "The path to the network model files",
+              output_dir: "Where to write the games" = "data/selfplay",
+              holdout_dir: "Where to write the games" = "data/holdout",
+              output_sgf: "Where to write the sgfs" = "sgf/",
+              verbose: '>=2 will print debug info, >=3 will print boards' = 1,
+              holdout_pct: 'how many games to hold out for validation' = 0.05):
+    import dao
+    with utils.logged_timer("Loading weights from %s ... " % load_file):
+        network = dual_net.DualNetwork(load_file)
+
+    with utils.logged_timer("Playing game"):
+        dao.play(network)
+
+
 def convert(load_file, dest_file):
     from tensorflow.python.framework import meta_graph
     features, labels = dual_net.get_inference_input()

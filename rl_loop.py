@@ -61,7 +61,7 @@ def selfplay(verbose=2):
     game_output_dir = os.path.join(fsdb.selfplay_dir(), model_name)
     game_holdout_dir = os.path.join(fsdb.holdout_dir(), model_name)
     sgf_dir = os.path.join(fsdb.sgf_dir(), model_name)
-    main.selfplay(
+    main.selfplay2(
         load_file=model_save_path,
         output_dir=game_output_dir,
         holdout_dir=game_holdout_dir,
