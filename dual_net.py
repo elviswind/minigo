@@ -38,6 +38,7 @@ import features as features_lib
 import go
 import preprocessing
 import symmetries
+import dao
 
 flags.DEFINE_integer('train_batch_size', 256,
                      'Batch size to use for train/eval evaluation. For GPU '
@@ -154,15 +155,11 @@ class DualNetwork():
 
     def run_many(self, positions, use_random_symmetry=True):
         processed = list(map(features_lib.extract_features, positions))
-        if use_random_symmetry:
-            syms_used, processed = symmetries.randomize_symmetries_feat(
-                processed)
+
         outputs = self.sess.run(self.inference_output,
-                                feed_dict={self.inference_input: processed})
+                                feed_dict={self.inference_input['pos_tensor']: processed})
         probabilities, value = outputs['policy_output'], outputs['value_output']
-        if use_random_symmetry:
-            probabilities = symmetries.invert_symmetries_pi(
-                syms_used, probabilities)
+
         return probabilities, value
 
 
@@ -170,10 +167,11 @@ def get_inference_input():
     """Set up placeholders for input features/labels.
 
     Returns the feature, output tensors that get passed into model_fn."""
-    return (tf.placeholder(tf.float32,
-                           [None, go.N, go.N, features_lib.NEW_FEATURES_PLANES],
-                           name='pos_tensor'),
-            {'pi_tensor': tf.placeholder(tf.float32, [None, go.N * go.N + 1]),
+    return ({'pos_tensor':tf.placeholder(tf.float32,
+                           [None, dao.N, 1],
+                           name='pos_tensor')
+             },
+            {'pi_tensor': tf.placeholder(tf.float32, [None, dao.M]),
              'value_tensor': tf.placeholder(tf.float32, [None])})
 
 
@@ -320,8 +318,8 @@ def model_inference_fn(features, training):
         fused=True,
         training=training)
 
-    my_conv2d = functools.partial(
-        tf.layers.conv2d,
+    my_conv1d = functools.partial(
+        tf.layers.conv1d,
         filters=FLAGS.conv_width,
         kernel_size=3,
         padding="same",
@@ -329,13 +327,13 @@ def model_inference_fn(features, training):
         use_bias=True)
 
     def my_res_layer(inputs):
-        int_layer1 = my_batchn(my_conv2d(inputs))
+        int_layer1 = my_batchn(my_conv1d(inputs))
         initial_output = tf.nn.relu(int_layer1)
-        int_layer2 = my_batchn(my_conv2d(initial_output))
+        int_layer2 = my_batchn(my_conv1d(initial_output))
         output = tf.nn.relu(inputs + int_layer2)
         return output
 
-    initial_output = tf.nn.relu(my_batchn(my_conv2d(features)))
+    initial_output = tf.nn.relu(my_batchn(my_conv1d(features['pos_tensor'])))
 
     # the shared stack
     shared_output = initial_output
@@ -343,20 +341,20 @@ def model_inference_fn(features, training):
         shared_output = my_res_layer(shared_output)
 
     # policy head
-    policy_conv = my_conv2d(shared_output, filters=2, kernel_size=1)
+    policy_conv = my_conv1d(shared_output, filters=2, kernel_size=1)
     policy_conv = tf.nn.relu(my_batchn(policy_conv, center=False, scale=False))
     logits = tf.layers.dense(
-        tf.reshape(policy_conv, [-1, 2 * go.N * go.N]),
-        go.N * go.N + 1)
+        tf.reshape(policy_conv, [-1, 2 * dao.N]),
+        dao.M)
 
     policy_output = tf.nn.softmax(logits, name='policy_output')
 
     # value head
-    value_conv = my_conv2d(shared_output, filters=1, kernel_size=1)
+    value_conv = my_conv1d(shared_output, filters=1, kernel_size=1)
     value_conv = tf.nn.relu(my_batchn(value_conv, center=False, scale=False))
 
     value_fc_hidden = tf.nn.relu(tf.layers.dense(
-        tf.reshape(value_conv, [-1, go.N * go.N]),
+        tf.reshape(value_conv, [-1, dao.N]),
         FLAGS.fc_width))
     value_output = tf.nn.tanh(
         tf.reshape(tf.layers.dense(value_fc_hidden, 1), [-1]),
