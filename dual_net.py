@@ -157,10 +157,8 @@ class DualNetwork():
         return probs[0], values[0]
 
     def run_many(self, positions, use_random_symmetry=True):
-        processed = list(map(features_lib.extract_features, positions))
-
         outputs = self.sess.run(self.inference_output,
-                                feed_dict={self.inference_input['pos_tensor']: processed})
+                                feed_dict={self.inference_input['pos_tensor']: positions})
         probabilities, value = outputs['policy_output'], outputs['value_output']
 
         return probabilities, value
