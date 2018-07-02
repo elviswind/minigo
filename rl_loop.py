@@ -27,6 +27,7 @@ import cloud_logging
 import fsdb
 import main
 import shipname
+import utils
 
 # How many games before the selfplay workers will stop trying to play more.
 MAX_GAMES_PER_GENERATION = 20000
@@ -48,6 +49,7 @@ def bootstrap(working_dir):
 
 def selfplay(verbose=2):
     _, model_name = fsdb.get_latest_model()
+    utils.ensure_dir_exists(os.path.join(fsdb.selfplay_dir(), model_name))
     games = gfile.Glob(os.path.join(fsdb.selfplay_dir(), model_name, '*.zz'))
     if len(games) > MAX_GAMES_PER_GENERATION:
         print("{} has enough games ({})".format(model_name, len(games)))
