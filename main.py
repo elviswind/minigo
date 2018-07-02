@@ -172,7 +172,7 @@ def selfplay2(load_file: "The path to the network model files",
         network = dual_net.DualNetwork(load_file)
 
     with utils.logged_timer("Playing game"):
-        dao.play(network)
+        dao.play(network, output_dir)
 
 
 def convert(load_file, dest_file):

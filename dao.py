@@ -1,6 +1,8 @@
 import pandas
 import numpy as np
 import utils
+import time
+import os
 
 
 def get_d():
@@ -32,6 +34,7 @@ def get_d():
 
 
 d, eligible = get_d()
+d = d.astype(np.float32)
 N = d.shape[1]
 M = d.shape[0] + 1
 
@@ -67,7 +70,7 @@ def test_choice(choice):
     return [sorted(choice), a, loss, a / loss]
 
 
-def random_test(network):
+def random_test(network, output_dir):
     gathered = []
     with utils.logged_timer("start selfplay"):
         while len(gathered) < 100:
@@ -75,8 +78,44 @@ def random_test(network):
             if d.shape[0] in choice:
                 choice.remove(d.shape[0])
             gathered.append(test_choice(choice))
-    output = np.array(sorted(gathered, key=lambda x: x[3]))
-    return output
+    records = np.array(sorted(gathered, key=lambda x: x[3]))
+    pandas.DataFrame(records).to_csv('temp.csv')
+    make_examples(records, output_dir)
+
+
+def make_examples(results, output_dir):
+    tf_examples = []
+    import preprocessing
+    for result in results:
+        start = np.zeros(N).astype(np.float32)
+        record = result[0]
+        v = result[3]
+
+        remain = 10
+        for i in range(len(record)):
+            pi = np.ones(M).astype(np.float32) * 0.1
+            pi[record[i]] = 0.9
+            pi = pi / pi.sum()
+            tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
+
+            start = start + d[record[i]]
+            remain -= 1
+
+        if len(record) < 10:
+            pi = np.ones(M).astype(np.float32) * 0.1
+            pi[-1] = 0.9
+            pi = pi / pi.sum()
+            tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
+
+    output_name = '{}-{}'.format(int(time.time()), 1)
+    fname = os.path.join(output_dir, "{}.tfrecord.zz".format(output_name))
+    preprocessing.write_tf_examples(fname, tf_examples)
+
+    ds = preprocessing.get_input_tensors(128, [fname], filter_amount=1, shuffle_examples=False)
+
+    import tensorflow as tf
+    with tf.Session() as sess:
+        print(sess.run(ds))
 
 
 def get_p(network, got):
@@ -88,5 +127,5 @@ def get_p(network, got):
     return p
 
 
-def play(network):
-    random_test(network)
+def play(network, output_dir):
+    random_test(network, output_dir)
