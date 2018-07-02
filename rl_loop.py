@@ -74,13 +74,6 @@ def train(working_dir):
     model_num, model_name = fsdb.get_latest_model()
 
     games = gfile.Glob(os.path.join(fsdb.selfplay_dir(), model_name, '*.zz'))
-    if len(games) < MIN_GAMES_PER_GENERATION:
-        print("{} doesn't have enough games to train a new model yet ({})".format(
-            model_name, len(games)))
-        print("Sleeping...")
-        time.sleep(10*60)
-        print("Done...")
-        sys.exit(1)
 
     print("Training on gathered game data, initializing from {}".format(model_name))
     new_model_num = model_num + 1
