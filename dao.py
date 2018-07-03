@@ -111,12 +111,6 @@ def make_examples(results, output_dir):
     fname = os.path.join(output_dir, "{}.tfrecord.zz".format(output_name))
     preprocessing.write_tf_examples(fname, tf_examples)
 
-    ds = preprocessing.get_input_tensors(128, [fname], filter_amount=1, shuffle_examples=False)
-
-    import tensorflow as tf
-    with tf.Session() as sess:
-        print(sess.run(ds))
-
 
 def get_p(network, got):
     wave = np.zeros([d.shape[1], 1], dtype=np.float32)

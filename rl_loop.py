@@ -80,25 +80,8 @@ def train(working_dir):
     new_model_num = model_num + 1
     new_model_name = shipname.generate(new_model_num)
     print("New model will be {}".format(new_model_name))
-    training_file = os.path.join(
-        fsdb.golden_chunk_dir(), str(new_model_num) + '.tfrecord.zz')
-    while not gfile.Exists(training_file):
-        print("Waiting for", training_file)
-        time.sleep(1*60)
-    print("Using Golden File:", training_file)
-
-    try:
-        save_file = os.path.join(fsdb.models_dir(), new_model_name)
-        print("Training model")
-        dual_net.train(training_file)
-        print("Exporting model to ", save_file)
-        dual_net.export_model(working_dir, save_file)
-    except Exception as e:
-        import traceback
-        logging.error(traceback.format_exc())
-        print(traceback.format_exc())
-        logging.exception("Train error")
-        sys.exit(1)
+    main.train_dir(os.path.join(fsdb.selfplay_dir(), model_name),
+                   os.path.join(fsdb.models_dir(), new_model_name))
 
 
 def validate(working_dir, model_num=None, validate_name=None):
