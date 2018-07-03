@@ -73,30 +73,13 @@ def selfplay(verbose=2):
 def train(working_dir):
     model_num, model_name = fsdb.get_latest_model()
 
-    games = gfile.Glob(os.path.join(fsdb.selfplay_dir(), model_name, '*.zz'))
-
     print("Training on gathered game data, initializing from {}".format(model_name))
     new_model_num = model_num + 1
     new_model_name = shipname.generate(new_model_num)
     print("New model will be {}".format(new_model_name))
-    training_file = os.path.join(
-        fsdb.golden_chunk_dir(), str(new_model_num) + '.tfrecord.zz')
-    while not gfile.Exists(training_file):
-        print("Waiting for", training_file)
-        time.sleep(1*60)
-    print("Using Golden File:", training_file)
 
-    local_copy = os.path.join(working_dir, str(new_model_num) + '.tfrecord.zz')
-    print("Copying locally to ", local_copy)
-    gfile.Copy(training_file, local_copy, overwrite=True)
-
-    try:
-        save_file = os.path.join(fsdb.models_dir(), new_model_name)
-        main.train(working_dir, [local_copy], save_file)
-    except:
-        logging.exception("Train error")
-    finally:
-        os.remove(local_copy)
+    main.train_dir(os.path.join(fsdb.selfplay_dir(), model_name),
+                   os.path.join(fsdb.models_dir(), new_model_name))
 
 
 def validate(working_dir, model_num=None, validate_name=None):

@@ -165,10 +165,9 @@ def get_inference_input():
     """Set up placeholders for input features/labels.
 
     Returns the feature, output tensors that get passed into model_fn."""
-    return ({'pos_tensor':tf.placeholder(tf.float32,
+    return (tf.placeholder(tf.float32,
                            [None, dao.N, 1],
-                           name='pos_tensor')
-             },
+                           name='pos_tensor'),
             {'pi_tensor': tf.placeholder(tf.float32, [None, dao.M]),
              'value_tensor': tf.placeholder(tf.float32, [None])})
 
@@ -331,7 +330,7 @@ def model_inference_fn(features, training):
         output = tf.nn.relu(inputs + int_layer2)
         return output
 
-    initial_output = tf.nn.relu(my_batchn(my_conv1d(features['pos_tensor'])))
+    initial_output = tf.nn.relu(my_batchn(my_conv1d(features)))
 
     # the shared stack
     shared_output = initial_output
