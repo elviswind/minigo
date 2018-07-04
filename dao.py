@@ -73,12 +73,12 @@ def test_choice(choice):
 def random_test(network, output_dir):
     gathered = []
     with utils.logged_timer("start selfplay"):
-        while len(gathered) < 100:
+        while len(gathered) < 10000:
             choice = factorial_random([], network)
             if d.shape[0] in choice:
                 choice.remove(d.shape[0])
             gathered.append(test_choice(choice))
-    records = np.array(sorted(gathered, key=lambda x: x[3]))
+    records = np.array(sorted(gathered, key=lambda x: x[3], reverse=True))[:5000]
     pandas.DataFrame(records).to_csv('temp.csv')
     make_examples(records, output_dir)
 
