@@ -105,10 +105,10 @@ def test_choice(choice):
     return [sorted(choice), a, loss, a / loss]
 
 
-def random_test(network, output_dir, repeat):
+def random_test(network, output_dir, repeat, max):
     gathered = []
     with utils.logged_timer("start selfplay"):
-        while len(gathered) < 10000:
+        while len(gathered) < max:
             choices = factorial_random2(None, network, repeat)
             for choice in choices:
                 if d.shape[0] in choice:
@@ -171,13 +171,14 @@ def get_ps(network, gots):
 
 
 def play(network, output_dir):
-    thistime = random_test(network, output_dir, 2)
-    lasttime = []
-    if os.path.exists('lasttime.py'):
-        lasttime = np.load('lasttime.npy').tolist()
-    records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)[:5000]
+    for x in range(5):
+        thistime = random_test(network, output_dir, 2, 10000)
+        lasttime = []
+        if os.path.exists('lasttime.npy'):
+            lasttime = np.load('lasttime.npy').tolist()
+        records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)[:5000]
+        np.save('lasttime.npy', np.array(records))
 
     with utils.logged_timer("start making example"):
         make_examples(records, output_dir)
 
-    np.save('lasttime.npy', np.array(records))
