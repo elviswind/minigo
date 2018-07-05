@@ -57,6 +57,41 @@ def factorial_random(got, network):
         return factorial_random(got + [i], network)
 
 
+def factorial_random2(gots, network, repeat):
+    if gots is None or len(gots) == 0:
+        gots = []
+        f = find_eligible([])
+        p = get_p(network, [])[f]
+        for j in range(repeat):
+            c = np.random.choice(f, 1, p=p / p.sum())[0]
+            gots.append([c])
+
+    toContinue = []
+    toKeep = []
+    for got in gots:
+        if d.shape[0] in got or len(got) == 10:
+            toKeep.append(got)
+        else:
+            toContinue.append(got)
+
+    if len(toContinue) == 0:
+        return toKeep
+
+    fines = []
+    for got in toContinue:
+        fines.append(find_eligible(got))
+
+    ps = get_ps(network, toContinue)
+    nextGots = []
+    for i in range(len(toContinue)):
+        p = ps[i][fines[i]]
+        for j in range(repeat):
+            c = np.random.choice(fines[i], 1, p=p / p.sum())[0]
+            nextGots.append(toContinue[i] + [c])
+
+    return factorial_random2(toKeep + nextGots, network, repeat)
+
+
 def test_choice(choice):
     s = d[choice].sum(axis=0)
     s /= len(choice)
@@ -70,42 +105,44 @@ def test_choice(choice):
     return [sorted(choice), a, loss, a / loss]
 
 
-def random_test(network, output_dir):
+def random_test(network, output_dir, repeat):
     gathered = []
     with utils.logged_timer("start selfplay"):
         while len(gathered) < 10000:
-            choice = factorial_random([], network)
-            if d.shape[0] in choice:
-                choice.remove(d.shape[0])
-            gathered.append(test_choice(choice))
-    records = np.array(sorted(gathered, key=lambda x: x[3], reverse=True))[:5000]
-    pandas.DataFrame(records).to_csv('temp.csv')
-    make_examples(records, output_dir)
+            choices = factorial_random2(None, network, repeat)
+            for choice in choices:
+                if d.shape[0] in choice:
+                    choice.remove(d.shape[0])
+                gathered.append(test_choice(choice))
+
+    records = sorted(gathered, key=lambda x: x[3], reverse=True)[:5000]
+    return records
 
 
 def make_examples(results, output_dir):
     tf_examples = []
     import preprocessing
-    for result in results:
-        start = np.zeros(N).astype(np.float32)
-        record = result[0]
-        v = result[3]
+    with utils.logged_timer("start making example 2"):
+        for result in results:
+            start = np.zeros(N).astype(np.float32)
+            record = result[0]
+            v = result[3]
 
-        remain = 10
-        for i in range(len(record)):
-            pi = np.ones(M).astype(np.float32) * 0.1
-            pi[record[i]] = 0.9
-            pi = pi / pi.sum()
-            tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
+            remain = 10
+            for i in range(len(record)):
+                pi = np.ones(M).astype(np.float32) * 0.1
+                pi[record[i]] = 0.9
+                pi = pi / pi.sum()
+                tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
 
-            start = start + d[record[i]]
-            remain -= 1
+                start = start + d[record[i]]
+                remain -= 1
 
-        if len(record) < 10:
-            pi = np.ones(M).astype(np.float32) * 0.1
-            pi[-1] = 0.9
-            pi = pi / pi.sum()
-            tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
+            if len(record) < 10:
+                pi = np.ones(M).astype(np.float32) * 0.1
+                pi[-1] = 0.9
+                pi = pi / pi.sum()
+                tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
 
     output_name = '{}-{}'.format(int(time.time()), 1)
     fname = os.path.join(output_dir, "{}.tfrecord.zz".format(output_name))
@@ -121,5 +158,26 @@ def get_p(network, got):
     return p
 
 
+def get_ps(network, gots):
+    waves = []
+    for got in gots:
+        wave = np.zeros([d.shape[1], 1], dtype=np.float32)
+        if len(got) > 0:
+            wave = np.reshape(d[got].sum(axis=0) / len(got), (d.shape[1], 1)).astype(np.float32)
+        waves.append(wave)
+
+    p, _ = network.run_many(waves)
+    return p
+
+
 def play(network, output_dir):
-    random_test(network, output_dir)
+    thistime = random_test(network, output_dir, 2)
+    lasttime = []
+    if os.path.exists('lasttime.py'):
+        lasttime = np.load('lasttime.npy').tolist()
+    records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)[:5000]
+
+    with utils.logged_timer("start making example"):
+        make_examples(records, output_dir)
+
+    np.save('lasttime.npy', np.array(records))
