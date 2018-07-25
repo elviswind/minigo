@@ -80,6 +80,7 @@ def train(working_dir):
     new_model_num = model_num + 1
     new_model_name = shipname.generate(new_model_num)
     print("New model will be {}".format(new_model_name))
+
     main.train_dir(os.path.join(fsdb.selfplay_dir(), model_name),
                    os.path.join(fsdb.models_dir(), new_model_name))
 
