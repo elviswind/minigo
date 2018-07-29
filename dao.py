@@ -37,6 +37,7 @@ d, eligible = get_d()
 d = d.astype(np.float32)
 N = d.shape[1]
 M = d.shape[0] + 1
+pi_started = None
 
 
 def find_eligible(got):
@@ -47,21 +48,21 @@ def find_eligible(got):
     return np.where(origin)[0].tolist() + [d.shape[0]]
 
 
-def factorial_random(got, network):
-    if d.shape[0] in got or len(got) == 10:
-        return got
-    else:
-        fine = find_eligible(got)
-        p = get_p(network, got)[fine]
-        i = np.random.choice(fine, 1, p=p / p.sum())[0]
-        return factorial_random(got + [i], network)
+# def factorial_random(got, network):
+#     if d.shape[0] in got or len(got) == 10:
+#         return got
+#     else:
+#         fine = find_eligible(got)
+#         p = get_p(network, got)[fine]
+#         i = np.random.choice(fine, 1, p=p / p.sum())[0]
+#         return factorial_random(got + [i], network)
 
 
 def factorial_random2(gots, network, repeat):
     if gots is None or len(gots) == 0:
         gots = []
         f = find_eligible([])
-        p = get_p(network, [])[f]
+        p = get_pstart()[f]
         for j in range(repeat):
             c = np.random.choice(f, 1, p=p / p.sum())[0]
             gots.append([c])
@@ -123,26 +124,59 @@ def make_examples(results, output_dir):
     tf_examples = []
     import preprocessing
     with utils.logged_timer("start making example 2"):
+        dict = {}
+        vict = {}
+
+        # count frequency
+        frequency = {}
         for result in results:
-            start = np.zeros(N).astype(np.float32)
+            for x in result[0]:
+                if x in frequency:
+                    frequency[x] += 1
+                else:
+                    frequency[x] = 1
+
+        for result in results:
             record = result[0]
-            v = result[3]
-
-            remain = 10
+            record.sort(key=lambda x: frequency[x], reverse=True)
+            v = result[3] - 0.2
             for i in range(len(record)):
-                pi = np.ones(M).astype(np.float32) * 0.1
-                pi[record[i]] = 0.9
-                pi = pi / pi.sum()
-                tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
+                key = str(record[:i])
 
-                start = start + d[record[i]]
-                remain -= 1
+                if key not in dict:
+                    dict[key] = []
 
-            if len(record) < 10:
-                pi = np.ones(M).astype(np.float32) * 0.1
-                pi[-1] = 0.9
-                pi = pi / pi.sum()
-                tf_examples.append(preprocessing.make_tf_example(np.expand_dims(start, axis=2), pi, v))
+                if len(record) < 10 and i + 1 == len(record):
+                    dict[key].append(M - 1)
+                else:
+                    dict[key].append(record[i])
+
+                if key not in vict:
+                    vict[key] = v
+                elif v > vict[key]:
+                    vict[key] = v
+
+        for key in dict:
+            got = eval(key)
+            if len(got) == 0:
+                continue
+            dict_temp = {}
+            for i in dict[key]:
+                if i in dict_temp:
+                    dict_temp[i] += 1
+                else:
+                    dict_temp[i] = 1
+
+            pi = np.ones(M).astype(np.float32)
+            for i in dict_temp:
+                pi[i] = dict_temp[i]
+
+            # pi = (pi / pi.max() - 0.5) * 2
+            pi = pi / pi.sum()
+            position = np.zeros(N).astype(np.float32)
+            if len(got) > 0:
+                position = d[got].sum(axis=0)
+            tf_examples.append(preprocessing.make_tf_example(np.expand_dims(position, axis=2), pi, vict[key]))
 
     output_name = '{}-{}'.format(int(time.time()), 1)
     fname = os.path.join(output_dir, "{}.tfrecord.zz".format(output_name))
@@ -158,6 +192,10 @@ def get_p(network, got):
     return p
 
 
+def get_pstart():
+    return pi_started
+
+
 def get_ps(network, gots):
     waves = []
     for got in gots:
@@ -171,14 +209,25 @@ def get_ps(network, gots):
 
 
 def play(network, output_dir):
-    for x in range(5):
-        thistime = random_test(network, output_dir, 2, 10000)
+    for x in range(10):
         lasttime = []
+        global pi_started
+        pi_started = np.ones(M).astype(np.float32)
         if os.path.exists('lasttime.npy'):
             lasttime = np.load('lasttime.npy').tolist()
+            for x in lasttime:
+                pi_started[x[0]] += 1
+
+        pi_started = pi_started / pi_started.sum()
+        thistime = random_test(network, output_dir, 2, 10000)
+
         records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)[:5000]
         np.save('lasttime.npy', np.array(records))
 
     with utils.logged_timer("start making example"):
         make_examples(records, output_dir)
 
+
+def test_make_examples():
+    lasttime = np.load('lasttime.npy').tolist()
+    make_examples(lasttime, 'temp')
