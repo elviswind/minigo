@@ -485,7 +485,7 @@ def train(
                 tf_records,
                 filter_amount=1.0,
                 shuffle_buffer_size=FLAGS.shuffle_buffer_size,
-                random_rotation=True)
+                random_rotation=False)
 
         hooks = [UpdateRatioSessionHook(FLAGS.model_dir),
                  EchoStepCounterHook(output_dir=FLAGS.model_dir)]

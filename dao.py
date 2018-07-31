@@ -62,7 +62,7 @@ def factorial_random2(gots, network, repeat):
     if gots is None or len(gots) == 0:
         gots = []
         f = find_eligible([])
-        p = get_pstart()[f]
+        p = get_p(network, [])[f]
         for j in range(repeat):
             c = np.random.choice(f, 1, p=p / p.sum())[0]
             gots.append([c])
@@ -158,8 +158,6 @@ def make_examples(results, output_dir):
 
         for key in dict:
             got = eval(key)
-            if len(got) == 0:
-                continue
             dict_temp = {}
             for i in dict[key]:
                 if i in dict_temp:
@@ -167,7 +165,7 @@ def make_examples(results, output_dir):
                 else:
                     dict_temp[i] = 1
 
-            pi = np.ones(M).astype(np.float32)
+            pi = np.zeros(M).astype(np.float32)
             for i in dict_temp:
                 pi[i] = dict_temp[i]
 
@@ -192,10 +190,6 @@ def get_p(network, got):
     return p
 
 
-def get_pstart():
-    return pi_started
-
-
 def get_ps(network, gots):
     waves = []
     for got in gots:
@@ -211,18 +205,22 @@ def get_ps(network, gots):
 def play(network, output_dir):
     for x in range(10):
         lasttime = []
-        global pi_started
-        pi_started = np.ones(M).astype(np.float32)
         if os.path.exists('lasttime.npy'):
             lasttime = np.load('lasttime.npy').tolist()
-            for x in lasttime:
-                pi_started[x[0]] += 1
-
-        pi_started = pi_started / pi_started.sum()
         thistime = random_test(network, output_dir, 2, 10000)
 
-        records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)[:5000]
-        np.save('lasttime.npy', np.array(records))
+        records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)
+        tmp = set()
+        output = []
+        for record in records:
+            key = str(record[0])
+            if key not in tmp:
+                output.append(record)
+                tmp.add(key)
+            if len(output) >= 5000:
+                break
+
+        np.save('lasttime.npy', np.array(output))
 
     with utils.logged_timer("start making example"):
         make_examples(records, output_dir)

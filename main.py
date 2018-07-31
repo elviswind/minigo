@@ -86,7 +86,7 @@ def train(tf_records: 'list of files of tf_records to train on',
         model_save_path: 'Where to export the completed generation.'):
     print("Training on:", tf_records[0], "to", tf_records[-1])
     with utils.logged_timer("Training"):
-        dual_net.train(*tf_records)
+        dual_net.train(*tf_records, steps=5000)
     print("== Training done.  Exporting model to ", model_save_path)
     dual_net.export_model(flags.FLAGS.model_dir, model_save_path)
     freeze_graph(model_save_path)
