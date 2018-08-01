@@ -37,7 +37,8 @@ d, eligible = get_d()
 d = d.astype(np.float32)
 N = d.shape[1]
 M = d.shape[0] + 1
-pi_started = None
+MAX = 10
+POOL_SIZE = 5000
 
 
 def find_eligible(got):
@@ -48,21 +49,11 @@ def find_eligible(got):
     return np.where(origin)[0].tolist() + [d.shape[0]]
 
 
-# def factorial_random(got, network):
-#     if d.shape[0] in got or len(got) == 10:
-#         return got
-#     else:
-#         fine = find_eligible(got)
-#         p = get_p(network, got)[fine]
-#         i = np.random.choice(fine, 1, p=p / p.sum())[0]
-#         return factorial_random(got + [i], network)
-
-
-def factorial_random2(gots, network, repeat):
+def factorial_random(gots, network, repeat):
     if gots is None or len(gots) == 0:
         gots = []
         f = find_eligible([])
-        p = get_p(network, [])[f]
+        p = get_probabilities(network, [[]])[0][f]
         for j in range(repeat):
             c = np.random.choice(f, 1, p=p / p.sum())[0]
             gots.append([c])
@@ -70,7 +61,7 @@ def factorial_random2(gots, network, repeat):
     toContinue = []
     toKeep = []
     for got in gots:
-        if d.shape[0] in got or len(got) == 10:
+        if M - 1 in got or len(got) == MAX:
             toKeep.append(got)
         else:
             toContinue.append(got)
@@ -82,7 +73,7 @@ def factorial_random2(gots, network, repeat):
     for got in toContinue:
         fines.append(find_eligible(got))
 
-    ps = get_ps(network, toContinue)
+    ps = get_probabilities(network, toContinue)
     nextGots = []
     for i in range(len(toContinue)):
         p = ps[i][fines[i]]
@@ -90,7 +81,7 @@ def factorial_random2(gots, network, repeat):
             c = np.random.choice(fines[i], 1, p=p / p.sum())[0]
             nextGots.append(toContinue[i] + [c])
 
-    return factorial_random2(toKeep + nextGots, network, repeat)
+    return factorial_random(toKeep + nextGots, network, repeat)
 
 
 def test_choice(choice):
@@ -103,20 +94,20 @@ def test_choice(choice):
 
     loss = (((y - s) / s) ** 2).sum()
 
-    return [sorted(choice), a, loss, a / loss]
+    return [sorted(choice), a / loss, a, loss]
 
 
-def random_test(network, output_dir, repeat, max):
+def random_test(network, repeat, max):
     gathered = []
     with utils.logged_timer("start selfplay"):
         while len(gathered) < max:
-            choices = factorial_random2(None, network, repeat)
+            choices = factorial_random(None, network, repeat)
             for choice in choices:
                 if d.shape[0] in choice:
                     choice.remove(d.shape[0])
                 gathered.append(test_choice(choice))
 
-    records = sorted(gathered, key=lambda x: x[3], reverse=True)[:5000]
+    records = sorted(gathered, key=lambda x: x[1], reverse=True)[:POOL_SIZE]
     return records
 
 
@@ -181,21 +172,12 @@ def make_examples(results, output_dir):
     preprocessing.write_tf_examples(fname, tf_examples)
 
 
-def get_p(network, got):
-    wave = np.zeros([d.shape[1], 1], dtype=np.float32)
-    if len(got) > 0:
-        wave = np.reshape(d[got].sum(axis=0) / len(got), (d.shape[1], 1)).astype(np.float32)
-
-    p, _ = network.run(wave)
-    return p
-
-
-def get_ps(network, gots):
+def get_probabilities(network, choices):
     waves = []
-    for got in gots:
+    for choice in choices:
         wave = np.zeros([d.shape[1], 1], dtype=np.float32)
-        if len(got) > 0:
-            wave = np.reshape(d[got].sum(axis=0) / len(got), (d.shape[1], 1)).astype(np.float32)
+        if len(choice) > 0:
+            wave = np.reshape(d[choice].sum(axis=0) / len(choice), (N, 1)).astype(np.float32)
         waves.append(wave)
 
     p, _ = network.run_many(waves)
@@ -207,9 +189,11 @@ def play(network, output_dir):
         lasttime = []
         if os.path.exists('lasttime.npy'):
             lasttime = np.load('lasttime.npy').tolist()
-        thistime = random_test(network, output_dir, 2, 10000)
+        thistime = random_test(network, 2, POOL_SIZE * 2)
 
         records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)
+
+        # remove duplicates
         tmp = set()
         output = []
         for record in records:
@@ -217,7 +201,7 @@ def play(network, output_dir):
             if key not in tmp:
                 output.append(record)
                 tmp.add(key)
-            if len(output) >= 5000:
+            if len(output) >= POOL_SIZE:
                 break
 
         np.save('lasttime.npy', np.array(output))
