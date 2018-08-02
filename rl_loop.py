@@ -25,7 +25,6 @@ from tensorflow import gfile
 import itertools
 import random
 
-import cloud_logging
 import dual_net
 import fsdb
 import main
@@ -151,6 +150,5 @@ argh.add_commands(parser, [train, selfplay, backfill,
                            validate_hourly])
 
 if __name__ == '__main__':
-    cloud_logging.configure()
     remaining_argv = flags.FLAGS(sys.argv, known_only=True)
     argh.dispatch(parser, argv=remaining_argv[1:])

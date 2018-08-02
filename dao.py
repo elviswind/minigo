@@ -39,6 +39,7 @@ N = d.shape[1]
 M = d.shape[0] + 1
 MAX = 10
 POOL_SIZE = 5000
+black_list = [83, 923]
 
 
 def find_eligible(got):
@@ -46,7 +47,8 @@ def find_eligible(got):
     origin = eligible[got[0]]
     for i in range(1, len(got)):
         origin = np.logical_and(eligible[got[i]], origin)
-    return np.where(origin)[0].tolist() + [d.shape[0]]
+    ret = np.where(origin)[0].tolist() + [d.shape[0]]
+    return [i for i in ret if i not in black_list]
 
 
 def factorial_random(gots, network, repeat):
@@ -130,7 +132,7 @@ def make_examples(results, output_dir):
         for result in results:
             record = result[0]
             record.sort(key=lambda x: frequency[x], reverse=True)
-            v = result[3] - 0.2
+            v = result[1] - 0.2
             for i in range(len(record)):
                 key = str(record[:i])
 
@@ -175,7 +177,7 @@ def make_examples(results, output_dir):
 def get_probabilities(network, choices):
     waves = []
     for choice in choices:
-        wave = np.zeros([d.shape[1], 1], dtype=np.float32)
+        wave = np.zeros([N, 1], dtype=np.float32)
         if len(choice) > 0:
             wave = np.reshape(d[choice].sum(axis=0) / len(choice), (N, 1)).astype(np.float32)
         waves.append(wave)
@@ -189,9 +191,14 @@ def play(network, output_dir):
         lasttime = []
         if os.path.exists('lasttime.npy'):
             lasttime = np.load('lasttime.npy').tolist()
-        thistime = random_test(network, 2, POOL_SIZE * 2)
+            print("best of last time ", list(map(lambda x: x[1], lasttime[0:3])))
+            print("worst of last time ", list(map(lambda x: x[1], lasttime[-3:])))
 
-        records = sorted(thistime + lasttime, key=lambda x: x[3], reverse=True)
+        thistime = random_test(network, 2, POOL_SIZE * 2)
+        print("best of this time ", list(map(lambda x: x[1], thistime[0:3])))
+        print("worst of this time ", list(map(lambda x: x[1], thistime[-3:])))
+
+        records = sorted(thistime + lasttime, key=lambda x: x[1], reverse=True)
 
         # remove duplicates
         tmp = set()
@@ -199,7 +206,9 @@ def play(network, output_dir):
         for record in records:
             key = str(record[0])
             if key not in tmp:
-                output.append(record)
+                banned = [i for i in record[0] if i in black_list]
+                if len(banned) == 0:
+                    output.append(record)
                 tmp.add(key)
             if len(output) >= POOL_SIZE:
                 break
