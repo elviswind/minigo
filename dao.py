@@ -10,7 +10,7 @@ def get_d():
     threshold = 0.6
 
     df = pandas.read_csv('d.csv', index_col=0)
-    # df = df.filter(like='ETF', axis=0)
+    df = df.filter(like='ETF', axis=0)
     a = df.iloc[:, :-1]
     b = df.iloc[:, 1:]
     b.columns = a.columns = range(df.shape[1] - 1)
@@ -39,7 +39,8 @@ N = d.shape[1]
 M = d.shape[0] + 1
 MAX = 10
 POOL_SIZE = 5000
-black_list = [83, 923]
+LOOPS = 20
+black_list = []
 
 
 def find_eligible(got):
@@ -57,7 +58,10 @@ def factorial_random(gots, network, repeat):
         f = find_eligible([])
         p = get_probabilities(network, [[]])[0][f]
         for j in range(repeat):
-            c = np.random.choice(f, 1, p=p / p.sum())[0]
+            p = np.log(p + 1.01)
+            p = p / p.sum()
+            pandas.DataFrame(p).to_csv('mmm.csv')
+            c = np.random.choice(f, 1, p=p)[0]
             gots.append([c])
 
     toContinue = []
@@ -80,7 +84,9 @@ def factorial_random(gots, network, repeat):
     for i in range(len(toContinue)):
         p = ps[i][fines[i]]
         for j in range(repeat):
-            c = np.random.choice(fines[i], 1, p=p / p.sum())[0]
+            p = np.log(p + 1.01)
+            p = p / p.sum()
+            c = np.random.choice(fines[i], 1, p=p)[0]
             nextGots.append(toContinue[i] + [c])
 
     return factorial_random(toKeep + nextGots, network, repeat)
@@ -187,36 +193,46 @@ def get_probabilities(network, choices):
 
 
 def play(network, output_dir):
-    for x in range(10):
+    for x in range(LOOPS):
         lasttime = []
         if os.path.exists('lasttime.npy'):
             lasttime = np.load('lasttime.npy').tolist()
-            print("best of last time ", list(map(lambda x: x[1], lasttime[0:3])))
-            print("worst of last time ", list(map(lambda x: x[1], lasttime[-3:])))
 
         thistime = random_test(network, 2, POOL_SIZE * 2)
-        print("best of this time ", list(map(lambda x: x[1], thistime[0:3])))
-        print("worst of this time ", list(map(lambda x: x[1], thistime[-3:])))
+        print("this run ", ",".join(map(lambda x: str(x[1])[:5], thistime[0:3])),
+              ",".join(map(lambda x: str(x[1])[:5], thistime[-3:])))
 
-        records = sorted(thistime + lasttime, key=lambda x: x[1], reverse=True)
-
-        # remove duplicates
+        i = 0
+        j = 0
         tmp = set()
         output = []
-        for record in records:
-            key = str(record[0])
-            if key not in tmp:
-                banned = [i for i in record[0] if i in black_list]
-                if len(banned) == 0:
-                    output.append(record)
-                tmp.add(key)
-            if len(output) >= POOL_SIZE:
-                break
+        newfound = 0
+        while len(output) < POOL_SIZE:
+            a = thistime[i][1]
+            a_key = str(thistime[i][0])
+            b = lasttime[j][1]
+            b_key = str(lasttime[j][0])
+
+            if a > b:
+                if a_key not in tmp:
+                    tmp.add(a_key)
+                    output.append(thistime[i])
+                    newfound += 1
+                i += 1
+            else:
+                if b_key not in tmp:
+                    tmp.add(b_key)
+                    output.append(lasttime[j])
+                j += 1
+
+        print("add {} new records ".format(newfound))
+        print("after merge ", ",".join(map(lambda x: str(x[1])[:5], output[0:3])),
+              ",".join(map(lambda x: str(x[1])[:5], output[-3:])))
 
         np.save('lasttime.npy', np.array(output))
 
     with utils.logged_timer("start making example"):
-        make_examples(records, output_dir)
+        make_examples(output, output_dir)
 
 
 def test_make_examples():
