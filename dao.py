@@ -10,7 +10,7 @@ def get_d():
     threshold = 0.6
 
     df = pandas.read_csv('d.csv', index_col=0)
-    df = df.filter(like='ETF', axis=0)
+    df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
     a = df.iloc[:, :-1]
     b = df.iloc[:, 1:]
     b.columns = a.columns = range(df.shape[1] - 1)
@@ -39,7 +39,7 @@ N = d.shape[1]
 M = d.shape[0] + 1
 MAX = 10
 POOL_SIZE = 5000
-LOOPS = 20
+LOOPS = 40
 black_list = []
 
 
@@ -60,7 +60,6 @@ def factorial_random(gots, network, repeat):
         for j in range(repeat):
             p = np.log(p + 1.01)
             p = p / p.sum()
-            pandas.DataFrame(p).to_csv('mmm.csv')
             c = np.random.choice(f, 1, p=p)[0]
             gots.append([c])
 
@@ -207,23 +206,26 @@ def play(network, output_dir):
         tmp = set()
         output = []
         newfound = 0
-        while len(output) < POOL_SIZE:
-            a = thistime[i][1]
-            a_key = str(thistime[i][0])
-            b = lasttime[j][1]
-            b_key = str(lasttime[j][0])
+        if len(lasttime) == 0:
+            output = thistime
+        else:
+            while len(output) < POOL_SIZE:
+                a = thistime[i][1]
+                a_key = str(thistime[i][0])
+                b = lasttime[j][1]
+                b_key = str(lasttime[j][0])
 
-            if a > b:
-                if a_key not in tmp:
-                    tmp.add(a_key)
-                    output.append(thistime[i])
-                    newfound += 1
-                i += 1
-            else:
-                if b_key not in tmp:
-                    tmp.add(b_key)
-                    output.append(lasttime[j])
-                j += 1
+                if a > b:
+                    if a_key not in tmp:
+                        tmp.add(a_key)
+                        output.append(thistime[i])
+                        newfound += 1
+                    i += 1
+                else:
+                    if b_key not in tmp:
+                        tmp.add(b_key)
+                        output.append(lasttime[j])
+                    j += 1
 
         print("add {} new records ".format(newfound))
         print("after merge ", ",".join(map(lambda x: str(x[1])[:5], output[0:3])),
