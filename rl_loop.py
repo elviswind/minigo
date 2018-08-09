@@ -25,12 +25,12 @@ from tensorflow import gfile
 import itertools
 import random
 
-import cloud_logging
 import dual_net
 import fsdb
 import main
 import selfplay as selfplay_lib
 import shipname
+import utils
 
 # How many games before the selfplay workers will stop trying to play more.
 MAX_GAMES_PER_GENERATION = 20000
@@ -52,6 +52,7 @@ def bootstrap(working_dir):
 
 def selfplay(verbose=2):
     _, model_name = fsdb.get_latest_model()
+    utils.ensure_dir_exists(os.path.join(fsdb.selfplay_dir(), model_name))
     games = gfile.Glob(os.path.join(fsdb.selfplay_dir(), model_name, '*.zz'))
     if len(games) > MAX_GAMES_PER_GENERATION:
         print("{} has enough games ({})".format(model_name, len(games)))
@@ -62,7 +63,7 @@ def selfplay(verbose=2):
     selfplay_dir = os.path.join(fsdb.selfplay_dir(), model_name)
     game_holdout_dir = os.path.join(fsdb.holdout_dir(), model_name)
     sgf_dir = os.path.join(fsdb.sgf_dir(), model_name)
-    selfplay_lib.run_game(
+    main.selfplay2(
         load_file=model_save_path,
         selfplay_dir=selfplay_dir,
         holdout_dir=game_holdout_dir,
@@ -78,25 +79,9 @@ def train(working_dir):
     new_model_num = model_num + 1
     new_model_name = shipname.generate(new_model_num)
     print("New model will be {}".format(new_model_name))
-    training_file = os.path.join(
-        fsdb.golden_chunk_dir(), str(new_model_num) + '.tfrecord.zz')
-    while not gfile.Exists(training_file):
-        print("Waiting for", training_file)
-        time.sleep(1*60)
-    print("Using Golden File:", training_file)
 
-    try:
-        save_file = os.path.join(fsdb.models_dir(), new_model_name)
-        print("Training model")
-        dual_net.train(training_file)
-        print("Exporting model to ", save_file)
-        dual_net.export_model(working_dir, save_file)
-    except Exception as e:
-        import traceback
-        logging.error(traceback.format_exc())
-        print(traceback.format_exc())
-        logging.exception("Train error")
-        sys.exit(1)
+    main.train_dir(os.path.join(fsdb.selfplay_dir(), model_name),
+                   os.path.join(fsdb.models_dir(), new_model_name))
 
 
 def validate(working_dir, model_num=None, validate_name=None):
@@ -165,6 +150,5 @@ argh.add_commands(parser, [train, selfplay, backfill,
                            validate_hourly])
 
 if __name__ == '__main__':
-    cloud_logging.configure()
     remaining_argv = flags.FLAGS(sys.argv, known_only=True)
     argh.dispatch(parser, argv=remaining_argv[1:])
