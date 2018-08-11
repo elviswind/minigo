@@ -3,6 +3,7 @@ import numpy as np
 import utils
 import time
 import os
+from collections import namedtuple
 
 
 def get_d():
@@ -41,6 +42,78 @@ MAX = 6
 POOL_SIZE = 5000
 LOOPS = 40
 black_list = []
+
+START_BOARD = np.zeros([N, 1], dtype=np.float32)
+
+
+class IllegalMove(Exception):
+    pass
+
+
+class PositionForTraining(namedtuple('SgfPosition', ['position', 'next_move', 'result'])):
+    pass
+
+
+class Position():
+    def __init__(self):
+        self.recent = []
+        self.to_play = 1
+        self.n = 0
+
+    def replicate(self):
+        new_pos = Position()
+        new_pos.recent = self.recent.copy()
+        new_pos.n = self.n
+        return new_pos
+
+    def all_legal_moves(self):
+        legal_moves = np.zeros([M], dtype=np.int8)
+        if (M - 1) in self.recent:
+            return legal_moves
+        good = find_eligible(self.recent)
+        legal_moves[good] = 1
+        return legal_moves
+
+    def get_state(self):
+        if len(self.recent) == 0:
+            return START_BOARD
+        else:
+            return np.reshape(d[self.recent].sum(axis=0) / len(self.recent), (N, 1)).astype(np.float32)
+
+    def play_move(self, a):
+        new_pos = self.replicate()
+        legal = self.all_legal_moves()
+        if legal[a] == 0:
+            raise IllegalMove("Move at {} not allowed\n".format(a))
+
+        new_pos.recent.append(a)
+        new_pos.n += 1
+        return new_pos
+
+    def is_game_over(self):
+        return len(self.recent) >= MAX or (M - 1) in self.recent
+
+    def score(self):
+        result = test_choice([i for i in self.recent if i != M - 1])
+        return result[1]
+
+    def result(self):
+        score = self.score()
+        if score > 0.5:
+            return 1
+        else:
+            return -1
+
+    def result_string(self):
+        return 'score'
+
+
+def replay_position(position, result):
+    assert position.n == len(position.recent), "Position history is incomplete"
+    pos = Position()
+    for next_move in position.recent:
+        yield PositionForTraining(pos, next_move, result)
+        pos = pos.play_move(next_move)
 
 
 def find_eligible(got):
@@ -182,7 +255,7 @@ def make_examples(results, output_dir):
 def get_probabilities(network, choices):
     waves = []
     for choice in choices:
-        wave = np.zeros([N, 1], dtype=np.float32)
+        wave = START_BOARD
         if len(choice) > 0:
             wave = np.reshape(d[choice].sum(axis=0) / len(choice), (N, 1)).astype(np.float32)
         waves.append(wave)

@@ -148,4 +148,4 @@ NEW_FEATURES_PLANES = sum(f.planes for f in NEW_FEATURES)
 
 
 def extract_features(position, features=NEW_FEATURES):
-    return np.concatenate([feature(position) for feature in features], axis=2)
+    return position.get_state()

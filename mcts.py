@@ -24,17 +24,16 @@ import math
 from absl import flags
 import numpy as np
 
-import coords
-import go
+import dao
 
 # 722 moves for 19x19, 162 for 9x9
-flags.DEFINE_integer('max_game_length', int(go.N ** 2 * 2),
+flags.DEFINE_integer('max_game_length', int(dao.M ** 2 * 2),
                      'Move number at which game is forcibly terminated')
 
 flags.DEFINE_float('c_puct', 0.96,
                    'Exploration constant balancing priors vs. value net output.')
 
-flags.DEFINE_float('dirichlet_noise_alpha', 0.03 * 361 / (go.N ** 2),
+flags.DEFINE_float('dirichlet_noise_alpha', 0.03,
                    'Concentrated-ness of the noise being injected into priors.')
 flags.register_validator('dirichlet_noise_alpha', lambda x: 0 <= x < 1)
 
@@ -81,11 +80,11 @@ class MCTSNode(object):
         self.losses_applied = 0  # number of virtual losses on this node
         # using child_() allows vectorized computation of action score.
         self.illegal_moves = 1 - self.position.all_legal_moves()
-        self.child_N = np.zeros([go.N * go.N + 1], dtype=np.float32)
-        self.child_W = np.zeros([go.N * go.N + 1], dtype=np.float32)
+        self.child_N = np.zeros([dao.M], dtype=np.float32)
+        self.child_W = np.zeros([dao.M], dtype=np.float32)
         # save a copy of the original prior before it gets mutated by d-noise.
-        self.original_prior = np.zeros([go.N * go.N + 1], dtype=np.float32)
-        self.child_prior = np.zeros([go.N * go.N + 1], dtype=np.float32)
+        self.original_prior = np.zeros([dao.M], dtype=np.float32)
+        self.child_prior = np.zeros([dao.M], dtype=np.float32)
         self.children = {}  # map of flattened moves to resulting MCTSNode
 
     def __repr__(self):
@@ -134,19 +133,11 @@ class MCTSNode(object):
 
     def select_leaf(self):
         current = self
-        pass_move = go.N * go.N
         while True:
             current.N += 1
             # if a node has never been evaluated, we have no basis to select a child.
             if not current.is_expanded:
                 break
-            # HACK: if last move was a pass, always investigate double-pass first
-            # to avoid situations where we auto-lose by passing too early.
-            if (current.position.recent
-                and current.position.recent[-1].move is None
-                    and current.child_N[pass_move] == 0):
-                current = current.maybe_add_child(pass_move)
-                continue
 
             best_move = np.argmax(current.child_action_score)
             current = current.maybe_add_child(best_move)
@@ -155,8 +146,7 @@ class MCTSNode(object):
     def maybe_add_child(self, fcoord):
         """ Adds child node for fcoord if it doesn't already exist, and returns it. """
         if fcoord not in self.children:
-            new_position = self.position.play_move(
-                coords.from_flat(fcoord))
+            new_position = self.position.play_move(fcoord)
             self.children[fcoord] = MCTSNode(
                 new_position, fmove=fcoord, parent=self)
         return self.children[fcoord]
@@ -201,7 +191,7 @@ class MCTSNode(object):
         self.parent.revert_visits(up_to)
 
     def incorporate_results(self, move_probabilities, value, up_to):
-        assert move_probabilities.shape == (go.N * go.N + 1,)
+        assert move_probabilities.shape == (dao.M,)
         # A finished game should not be going through this code path - should
         # directly call backup_value() on the result of the game.
         assert not self.position.is_game_over()
@@ -226,7 +216,7 @@ class MCTSNode(object):
         # continuing to explore the most favorable move. This is a waste of search.
         #
         # The value seeded here acts as a prior, and gets averaged into Q calculations.
-        self.child_W = np.ones([go.N * go.N + 1], dtype=np.float32) * value
+        self.child_W = np.ones([dao.M], dtype=np.float32) * value
         self.backup_value(value, up_to=up_to)
 
     def backup_value(self, value, up_to):
@@ -250,7 +240,7 @@ class MCTSNode(object):
     def inject_noise(self):
         epsilon = 1e-5
         legal_moves = (1 - self.illegal_moves) + epsilon
-        a = legal_moves * ([FLAGS.dirichlet_noise_alpha] * (go.N * go.N + 1))
+        a = legal_moves * ([FLAGS.dirichlet_noise_alpha] * (dao.M))
         dirichlet = np.random.dirichlet(a)
         self.child_prior = (self.child_prior * (1 - FLAGS.dirichlet_noise_weight) +
                             dirichlet * FLAGS.dirichlet_noise_weight)
@@ -286,8 +276,7 @@ class MCTSNode(object):
             if node is None:
                 output.append("GAME END")
                 break
-            output.append("%s (%d) ==> " % (coords.to_kgs(
-                                            coords.from_flat(node.fmove)),
+            output.append("%s (%d) ==> " % (node.fmove,
                                             node.N))
         output.append("Q: {:.5f}\n".format(node.Q))
         return ''.join(output)
@@ -299,12 +288,11 @@ class MCTSNode(object):
         while node.children and max(node.child_N) > 1:
             next_kid = np.argmax(node.child_N)
             node = node.children[next_kid]
-            output.append("%s" % coords.to_kgs(
-                coords.from_flat(node.fmove)))
+            output.append("%s" % node.fmove)
         return ' '.join(output)
 
     def describe(self):
-        sort_order = list(range(go.N * go.N + 1))
+        sort_order = list(range(dao.M))
         sort_order.sort(key=lambda i: (
             self.child_N[i], self.child_action_score[i]), reverse=True)
         soft_n = self.child_N / max(1, sum(self.child_N))
@@ -322,7 +310,7 @@ class MCTSNode(object):
             if self.child_N[key] == 0:
                 break
             output.append("\n{!s:4} : {: .3f} {: .3f} {:.3f} {:.3f} {:.3f} {:5d} {:.4f} {: .5f} {: .2f}".format(
-                coords.to_kgs(coords.from_flat(key)),
+                key,
                 self.child_action_score[key],
                 self.child_Q[key],
                 self.child_U[key],

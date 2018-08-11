@@ -66,7 +66,7 @@ def play(network, verbosity=0):
     # Must run this once at the start, so that noise injection actually
     # affects the first move of the game.
     first_node = player.root.select_leaf()
-    prob, val = network.run(first_node.position)
+    prob, val = network.run(first_node.position.get_state())
     first_node.incorporate_results(prob, val, first_node)
 
     while True:
@@ -125,12 +125,6 @@ def run_game(load_file, selfplay_dir, holdout_dir,
 
     output_name = '{}-{}'.format(int(time.time()), socket.gethostname())
     game_data = player.extract_data()
-    with gfile.GFile(
-        os.path.join(minimal_sgf_dir, '{}.sgf'.format(output_name)), 'w') as f:
-        f.write(player.to_sgf(use_comments=False))
-    with gfile.GFile(
-        os.path.join(full_sgf_dir, '{}.sgf'.format(output_name)), 'w') as f:
-        f.write(player.to_sgf())
 
     tf_examples = preprocessing.make_dataset_from_selfplay(game_data)
 

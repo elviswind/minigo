@@ -21,13 +21,13 @@ from absl import flags
 import numpy as np
 
 import coords
-import go
+import dao
 import mcts
 import sgf_wrapper
 
 from player_interface import MCTSPlayerInterface
 
-flags.DEFINE_integer('softpick_move_cutoff', (go.N * go.N // 12) // 2 * 2,
+flags.DEFINE_integer('softpick_move_cutoff', 100,
                      'The move number (<=) up to which moves are softpicked from MCTS visits.')
 # Ensure that both white and black have an equal number of softpicked moves.
 flags.register_validator('softpick_move_cutoff', lambda x: x % 2 == 0)
@@ -112,7 +112,7 @@ class MCTSPlayer(MCTSPlayerInterface):
 
     def initialize_game(self, position=None):
         if position is None:
-            position = go.Position()
+            position = dao.Position()
         self.root = mcts.MCTSNode(position)
         self.result = 0
         self.result_string = None
@@ -160,7 +160,7 @@ class MCTSPlayer(MCTSPlayerInterface):
         self.comments.append(self.root.describe())
         try:
             self.root = self.root.maybe_add_child(coords.to_flat(c))
-        except go.IllegalMove:
+        except dao.IllegalMove:
             print("Illegal move")
             if not self.two_player_mode:
                 self.searches_pi.pop()
@@ -204,7 +204,7 @@ class MCTSPlayer(MCTSPlayerInterface):
             leaves.append(leaf)
         if leaves:
             move_probs, values = self.network.run_many(
-                [leaf.position for leaf in leaves])
+                [leaf.position.get_state() for leaf in leaves])
             for leaf, move_prob, value in zip(leaves, move_probs, values):
                 leaf.revert_virtual_loss(up_to=self.root)
                 leaf.incorporate_results(move_prob, value, up_to=self.root)
@@ -235,31 +235,15 @@ class MCTSPlayer(MCTSPlayerInterface):
     def set_result(self, winner, was_resign):
         self.result = winner
         if was_resign:
-            string = "B+R" if winner == go.BLACK else "W+R"
+            string = "B+R" if winner == 'BLACK' else "W+R"
         else:
             string = self.root.position.result_string()
         self.result_string = string
 
-    def to_sgf(self, use_comments=True):
-        assert self.result_string is not None
-        pos = self.root.position
-        if use_comments:
-            comments = self.comments or ['No comments.']
-            comments[0] = ("Resign Threshold: %0.3f\n" %
-                           self.resign_threshold) + comments[0]
-        else:
-            comments = []
-        return sgf_wrapper.make_sgf(pos.recent, self.result_string,
-                                    white_name=os.path.basename(
-                                        self.network.save_file) or "Unknown",
-                                    black_name=os.path.basename(
-                                        self.network.save_file) or "Unknown",
-                                    comments=comments)
-
     def extract_data(self):
         assert len(self.searches_pi) == self.root.position.n
         assert self.result != 0
-        for pwc, pi in zip(go.replay_position(self.root.position, self.result),
+        for pwc, pi in zip(dao.replay_position(self.root.position, self.result),
                            self.searches_pi):
             yield pwc.position, pi, pwc.result
 

@@ -84,18 +84,6 @@ class PlayerInterface(ABC):
         pass
 
     @abstractmethod
-    def to_sgf(self, use_comments=True):
-        """Format the game history as SGF.
-
-        Args:
-          use_comments: True to add debug info as a comment to the move nodes.
-
-        Returns:
-          A formatted SGF string
-        """
-        pass
-
-    @abstractmethod
     def set_result(self, winner, was_resign):
         """Sets the game result.
 
