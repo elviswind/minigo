@@ -98,14 +98,15 @@ class Position():
         return result[1]
 
     def result(self):
-        score = self.score()
-        if score > 0.5:
-            return 1
-        else:
-            return -1
+        score = self.score() - 0.8
+        return score
 
     def result_string(self):
         return 'score'
+
+    def describe(self):
+        result = test_choice([i for i in self.recent if i != M - 1])
+        return str(result)
 
 
 def replay_position(position, result):

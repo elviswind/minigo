@@ -63,14 +63,15 @@ def selfplay(verbose=2):
     selfplay_dir = os.path.join(fsdb.selfplay_dir(), model_name)
     game_holdout_dir = os.path.join(fsdb.holdout_dir(), model_name)
     sgf_dir = os.path.join(fsdb.sgf_dir(), model_name)
-    selfplay_lib.run_game(
-        load_file=model_save_path,
-        selfplay_dir=selfplay_dir,
-        holdout_dir=game_holdout_dir,
-        sgf_dir=sgf_dir,
-        holdout_pct=HOLDOUT_PCT,
-        verbose=verbose,
-    )
+    for i in range(10):
+        selfplay_lib.run_game(
+            load_file=model_save_path,
+            selfplay_dir=selfplay_dir,
+            holdout_dir=game_holdout_dir,
+            sgf_dir=sgf_dir,
+            holdout_pct=HOLDOUT_PCT,
+            verbose=verbose,
+        )
 
 def train(working_dir):
     model_num, model_name = fsdb.get_latest_model()

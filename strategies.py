@@ -37,7 +37,7 @@ flags.DEFINE_float('resign_threshold', -0.9,
                    'A threshold of -1 implies resign is disabled.')
 flags.register_validator('resign_threshold', lambda x: -1 <= x < 0)
 
-flags.DEFINE_integer('num_readouts', 800,
+flags.DEFINE_integer('num_readouts', 20000,
                      'Number of searches to add to the MCTS search tree before playing a move.')
 flags.register_validator('num_readouts', lambda x: x > 0)
 
@@ -243,6 +243,7 @@ class MCTSPlayer(MCTSPlayerInterface):
     def extract_data(self):
         assert len(self.searches_pi) == self.root.position.n
         assert self.result != 0
+        print(self.root.position.describe())
         for pwc, pi in zip(dao.replay_position(self.root.position, self.result),
                            self.searches_pi):
             yield pwc.position, pi, pwc.result
