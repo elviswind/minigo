@@ -56,23 +56,23 @@ def selfplay(verbose=2):
     games = gfile.Glob(os.path.join(fsdb.selfplay_dir(), model_name, '*.zz'))
     if len(games) > MAX_GAMES_PER_GENERATION:
         print("{} has enough games ({})".format(model_name, len(games)))
-        time.sleep(10*60)
+        time.sleep(10 * 60)
         sys.exit(1)
     print("Playing a game with model {}".format(model_name))
     model_save_path = os.path.join(fsdb.models_dir(), model_name)
     selfplay_dir = os.path.join(fsdb.selfplay_dir(), model_name)
     game_holdout_dir = os.path.join(fsdb.holdout_dir(), model_name)
     sgf_dir = os.path.join(fsdb.sgf_dir(), model_name)
-    # main.selfplay2(load_file=model_save_path)
-    for i in range(10):
-        selfplay_lib.run_game(
-            load_file=model_save_path,
-            selfplay_dir=selfplay_dir,
-            holdout_dir=game_holdout_dir,
-            sgf_dir=sgf_dir,
-            holdout_pct=HOLDOUT_PCT,
-            verbose=verbose,
-        )
+    main.selfplay2(load_file=model_save_path, output_dir=selfplay_dir)
+    # for i in range(10):
+    #     selfplay_lib.run_game(
+    #         load_file=model_save_path,
+    #         selfplay_dir=selfplay_dir,
+    #         holdout_dir=game_holdout_dir,
+    #         sgf_dir=sgf_dir,
+    #         holdout_pct=HOLDOUT_PCT,
+    #         verbose=verbose,
+    #     )
 
 
 def train(working_dir):
@@ -110,6 +110,7 @@ def validate(working_dir, model_num=None, validate_name=None):
     main.validate(working_dir, *holdout_dirs,
                   validate_name=validate_name)
 
+
 def validate_hourly(working_dir, validate_name=None):
     """ compiles a list of games based on the new hourly directory format. Then
     calls validate on it """
@@ -117,8 +118,8 @@ def validate_hourly(working_dir, validate_name=None):
     holdout_dirs = gfile.ListDirectory(fsdb.holdout_dir())
     holdout_files = (os.path.join(fsdb.holdout_dir(), d, f)
                      for d in reversed(gfile.ListDirectory(fsdb.holdout_dir()))
-                     for f in gfile.ListDirectory(os.path.join(fsdb.holdout_dir(),d))
-                     if gfile.IsDirectory(os.path.join(fsdb.holdout_dir(),d)))
+                     for f in gfile.ListDirectory(os.path.join(fsdb.holdout_dir(), d))
+                     if gfile.IsDirectory(os.path.join(fsdb.holdout_dir(), d)))
     holdout_files = list(itertools.islice(holdout_files, 20000))
     random.shuffle(holdout_files)
     dual_net.validate(holdout_files)

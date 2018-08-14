@@ -11,7 +11,7 @@ def get_d():
     threshold = 0.6
 
     df = pandas.read_csv('d.csv', index_col=0)
-    df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
+    # df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
     a = df.iloc[:, :-1]
     b = df.iloc[:, 1:]
     b.columns = a.columns = range(df.shape[1] - 1)
@@ -40,7 +40,7 @@ N = d.shape[1]
 M = d.shape[0] + 1
 MAX = 6
 POOL_SIZE = 5000
-LOOPS = 40
+LOOPS = 20
 black_list = []
 
 START_BOARD = np.zeros([N, 1], dtype=np.float32)
@@ -157,7 +157,7 @@ def factorial_random(gots, network, repeat):
     for i in range(len(toContinue)):
         p = ps[i][fines[i]]
         for j in range(repeat):
-            p = np.log(p + 1.01)
+            #p = np.log(p + 1.0)
             p = p / p.sum()
             c = np.random.choice(fines[i], 1, p=p)[0]
             nextGots.append(toContinue[i] + [c])
