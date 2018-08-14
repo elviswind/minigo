@@ -41,7 +41,7 @@ M = d.shape[0] + 1
 MAX = 6
 POOL_SIZE = 5000
 LOOPS = 20
-black_list = []
+black_list = [9]
 
 START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
@@ -284,19 +284,23 @@ def play(network, output_dir):
             output = thistime
         else:
             while len(output) < POOL_SIZE:
-                a = thistime[i][1]
-                a_key = str(thistime[i][0])
-                b = lasttime[j][1]
-                b_key = str(lasttime[j][0])
+                a = -10000
+                if i < len(thistime):
+                    a = thistime[i][1]
+                    a_key = str(thistime[i][0])
+                b = -10000
+                if j < len(lasttime):
+                    b = lasttime[j][1]
+                    b_key = str(lasttime[j][0])
 
-                if a > b:
-                    if a_key not in tmp:
+                if a > b and i < len(thistime):
+                    if a_key not in tmp and len([x for x in black_list if x not in thistime[i][0]]) == len(black_list):
                         tmp.add(a_key)
                         output.append(thistime[i])
                         newfound += 1
                     i += 1
-                else:
-                    if b_key not in tmp:
+                elif j < len(lasttime):
+                    if b_key not in tmp and len([x for x in black_list if x not in lasttime[j][0]]) == len(black_list):
                         tmp.add(b_key)
                         output.append(lasttime[j])
                     j += 1
