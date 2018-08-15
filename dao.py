@@ -42,6 +42,7 @@ MAX = 6
 POOL_SIZE = 5000
 LOOPS = 20
 black_list = [9]
+PREFER_LIST = [583]
 
 START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
@@ -132,7 +133,12 @@ def factorial_random(gots, network, repeat):
         f = find_eligible([])
         p = get_probabilities(network, [[]])[0][f]
         for j in range(repeat):
-            p = np.log(p + 1.01)
+            # p = np.log(p + 1.01)
+            p = p / p.sum()
+            mod = np.ones(len(p))
+            mod[PREFER_LIST] = 10
+            mod = mod / mod.sum()
+            p = p + 0.2 * mod
             p = p / p.sum()
             c = np.random.choice(f, 1, p=p)[0]
             gots.append([c])
@@ -157,7 +163,12 @@ def factorial_random(gots, network, repeat):
     for i in range(len(toContinue)):
         p = ps[i][fines[i]]
         for j in range(repeat):
-            #p = np.log(p + 1.0)
+            # p = np.log(p + 1.0)
+            p = p / p.sum()
+            mod = np.ones(len(p))
+            mod[PREFER_LIST] = 10
+            mod = mod / mod.sum()
+            p = p + 0.2 * mod
             p = p / p.sum()
             c = np.random.choice(fines[i], 1, p=p)[0]
             nextGots.append(toContinue[i] + [c])
