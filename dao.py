@@ -41,8 +41,8 @@ M = d.shape[0] + 1
 MAX = 6
 POOL_SIZE = 5000
 LOOPS = 20
-black_list = [9]
-PREFER_LIST = [583]
+BLACK_LIST = [608]
+PREFER_LIST = []
 
 START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
@@ -124,7 +124,18 @@ def find_eligible(got):
     for i in range(1, len(got)):
         origin = np.logical_and(eligible[got[i]], origin)
     ret = np.where(origin)[0].tolist() + [d.shape[0]]
-    return [i for i in ret if i not in black_list]
+    return [i for i in ret if i not in BLACK_LIST]
+
+
+def add_probability_mod(p, l):
+    p = np.log(p + 1.0 + 1 / (np.power(100, l) + 100))
+    if len(PREFER_LIST) > 0:
+        mod = np.ones(len(p))
+        mod[PREFER_LIST] = 10
+        mod = mod / mod.sum()
+        p = p + 0.2 * mod
+    p = p / p.sum()
+    return p
 
 
 def factorial_random(gots, network, repeat):
@@ -132,14 +143,9 @@ def factorial_random(gots, network, repeat):
         gots = []
         f = find_eligible([])
         p = get_probabilities(network, [[]])[0][f]
+        p = p / p.sum()
         for j in range(repeat):
-            # p = np.log(p + 1.01)
-            p = p / p.sum()
-            mod = np.ones(len(p))
-            mod[PREFER_LIST] = 10
-            mod = mod / mod.sum()
-            p = p + 0.2 * mod
-            p = p / p.sum()
+            p = add_probability_mod(p, 0)
             c = np.random.choice(f, 1, p=p)[0]
             gots.append([c])
 
@@ -163,13 +169,7 @@ def factorial_random(gots, network, repeat):
     for i in range(len(toContinue)):
         p = ps[i][fines[i]]
         for j in range(repeat):
-            # p = np.log(p + 1.0)
-            p = p / p.sum()
-            mod = np.ones(len(p))
-            mod[PREFER_LIST] = 10
-            mod = mod / mod.sum()
-            p = p + 0.2 * mod
-            p = p / p.sum()
+            p = add_probability_mod(p, len(toContinue[i]))
             c = np.random.choice(fines[i], 1, p=p)[0]
             nextGots.append(toContinue[i] + [c])
 
@@ -296,25 +296,27 @@ def play(network, output_dir):
         else:
             while len(output) < POOL_SIZE:
                 a = -10000
+                b = -10000
                 if i < len(thistime):
                     a = thistime[i][1]
                     a_key = str(thistime[i][0])
-                b = -10000
                 if j < len(lasttime):
                     b = lasttime[j][1]
                     b_key = str(lasttime[j][0])
 
                 if a > b and i < len(thistime):
-                    if a_key not in tmp and len([x for x in black_list if x not in thistime[i][0]]) == len(black_list):
+                    if a_key not in tmp and len([x for x in BLACK_LIST if x not in thistime[i][0]]) == len(BLACK_LIST):
                         tmp.add(a_key)
                         output.append(thistime[i])
                         newfound += 1
                     i += 1
-                elif j < len(lasttime):
-                    if b_key not in tmp and len([x for x in black_list if x not in lasttime[j][0]]) == len(black_list):
+                elif a <= b and j < len(lasttime):
+                    if b_key not in tmp and len([x for x in BLACK_LIST if x not in lasttime[j][0]]) == len(BLACK_LIST):
                         tmp.add(b_key)
                         output.append(lasttime[j])
                     j += 1
+                else:
+                    break
 
         print("add {} new records ".format(newfound))
         print("after merge ", ",".join(map(lambda x: str(x[1])[:5], output[0:3])),
