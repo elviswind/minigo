@@ -7,31 +7,32 @@ from collections import namedtuple
 
 
 def get_d():
-    base = 10
-    threshold = 0.6
-
     df = pandas.read_csv('d.csv', index_col=0)
-    # df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
-    a = df.iloc[:, :-1]
-    b = df.iloc[:, 1:]
-    b.columns = a.columns = range(df.shape[1] - 1)
-    r = (b - a) / a
-    p = 1 / np.linalg.norm(r, axis=1)
-    r = (r.T * p).T.values
-    l = r.shape[0]
+    search = ['SPY', 'EEM', 'QQQ', 'HYG', 'IWM', 'XLF', 'VXX', 'UVXY', 'EFA', 'FXI', 'EWZ', 'TLT', 'GLD', 'FEZ', 'SMH',
+              'USO', 'SLV', 'GDX', 'XIU.TO', 'XLI', 'XLE', 'DIA', 'XRT', 'XOP', 'TUR', 'FXE', 'KRE', 'AAPL', 'BAC',
+              'BABA', 'TSLA', 'FB', 'AMZN', 'GE', 'AMD', 'MU', 'C', 'INTC', 'ROKU', 'VIPS', 'AABA', 'EA', 'JPM', 'F',
+              'OSTK', 'NXPI', 'NFLX', 'TWTR', 'MSFT', 'FOXA', 'TRCO', 'SNAP', 'WYNN', 'GM', 'CAT', 'HBI', 'WFC', 'X',
+              'T', 'JD', 'PAGS', 'PBR', 'QCOM', 'USB', 'AA', 'WMT', 'DBX', 'AAL', 'BA', 'CMCSA', 'BIDU', 'KMI', 'MS',
+              'MET', 'FCX', 'YELP', 'PVG', 'NVDA', 'M', 'SQ', 'AKRX', 'YNDX', 'GS', 'BG', 'V', 'BK', 'DB', 'TAHO']
+    print(len(search))
+    found = []
+    for a in df.index:
+        for b in search:
+            if a[len(b) * (-1) - 1:] == '#' + b:
+                found.append(a)
+    print(len(found))
 
+    df = df.T[found]
+    df = (df / df.iloc[0, :]).T
+    origin = df.copy()
+    for i in range(2, 11):
+        n = origin.copy() * i
+        n.index = map(lambda x: str(i) + x, origin.index)
+        df = pandas.concat([df, n])
+
+    l = df.shape[0]
     correlation = np.ones([l, l])
-    for i in range(l):
-        for j in range(i + 1, l):
-            s = (r[i] * r[j]).sum()
-            correlation[i][j] = s
-            correlation[j][i] = s
-    correlation[np.abs(correlation) > threshold] = 0
-    correlation[np.logical_and(np.abs(correlation) <= threshold, correlation != 0)] = 1
-
-    return (np.concatenate((np.ones([r.shape[0], 1]) * base,
-                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1),
-            correlation)
+    return df.values, correlation
 
 
 d, eligible = get_d()
