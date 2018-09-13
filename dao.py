@@ -8,21 +8,7 @@ from collections import namedtuple
 
 def get_d():
     df = pandas.read_csv('d.csv', index_col=0)
-    search = ['SPY', 'EEM', 'QQQ', 'HYG', 'IWM', 'XLF', 'VXX', 'UVXY', 'EFA', 'FXI', 'EWZ', 'TLT', 'GLD', 'FEZ', 'SMH',
-              'USO', 'SLV', 'GDX', 'XIU.TO', 'XLI', 'XLE', 'DIA', 'XRT', 'XOP', 'TUR', 'FXE', 'KRE', 'AAPL', 'BAC',
-              'BABA', 'TSLA', 'FB', 'AMZN', 'GE', 'AMD', 'MU', 'C', 'INTC', 'ROKU', 'VIPS', 'AABA', 'EA', 'JPM', 'F',
-              'OSTK', 'NXPI', 'NFLX', 'TWTR', 'MSFT', 'FOXA', 'TRCO', 'SNAP', 'WYNN', 'GM', 'CAT', 'HBI', 'WFC', 'X',
-              'T', 'JD', 'PAGS', 'PBR', 'QCOM', 'USB', 'AA', 'WMT', 'DBX', 'AAL', 'BA', 'CMCSA', 'BIDU', 'KMI', 'MS',
-              'MET', 'FCX', 'YELP', 'PVG', 'NVDA', 'M', 'SQ', 'AKRX', 'YNDX', 'GS', 'BG', 'V', 'BK', 'DB', 'TAHO']
-    print(len(search))
-    found = []
-    for a in df.index:
-        for b in search:
-            if a[len(b) * (-1) - 1:] == '#' + b:
-                found.append(a)
-    print(len(found))
-
-    df = df.T[found]
+    df = df.T
     df = (df / df.iloc[0, :]).T
     origin = df.copy()
     for i in range(2, 11):
@@ -42,7 +28,7 @@ M = d.shape[0] + 1
 MAX = 6
 POOL_SIZE = 5000
 LOOPS = 20
-BLACK_LIST = [608]
+BLACK_LIST = []
 PREFER_LIST = []
 
 START_BOARD = np.zeros([N, 1], dtype=np.float32)
@@ -187,7 +173,7 @@ def test_choice(choice):
 
     loss = (((y - s) / s) ** 2).sum()
 
-    return [sorted(choice), a / loss, a, loss]
+    return [sorted(choice), (0.01 + 10 * a) / (0.01 + loss), a, loss]
 
 
 def random_test(network, repeat, max):
