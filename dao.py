@@ -170,10 +170,18 @@ def test_choice(choice):
     x = np.arange(len(s)) + 1
     a, b = np.polyfit(x, np.log(s), 1)
     y = np.exp(a * x + b)
+    gain = y[-1] / y[0] - 1
 
     loss = (((y - s) / s) ** 2).sum()
 
-    return [sorted(choice), (0.01 + 10 * a) / (0.01 + loss), a, loss]
+    drop = 1 - s / np.maximum.accumulate(s)
+    drop_i = np.argsort(drop)
+    def getIJ(ij, i):
+        return ij[i], np.argmax(s[:ij[i]])
+
+    i, j = getIJ(drop_i, -1)
+
+    return [sorted(choice), (gain - 0.1) / (3 * drop[i] + loss), a, loss]
 
 
 def random_test(network, repeat, max):
