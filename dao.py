@@ -8,8 +8,20 @@ from collections import namedtuple
 
 def get_d():
     df = pandas.read_csv('d.csv', index_col=0)
-    df = df.T
-    df = (df / df.iloc[0, :]).T
+    names = df.index
+    columns = df.columns
+
+    a = df.iloc[:, :-1]
+    b = df.iloc[:, 1:]
+    b.columns = a.columns
+    r = (b - a) / a
+    r = r.values
+    base = 10
+    df = pandas.DataFrame(np.concatenate((np.ones([r.shape[0], 1]) * base,
+                                          np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1))
+    df.index = names
+    df.columns = columns
+
     origin = df.copy()
     for i in range(2, 11):
         n = origin.copy() * i
@@ -176,12 +188,13 @@ def test_choice(choice):
 
     drop = 1 - s / np.maximum.accumulate(s)
     drop_i = np.argsort(drop)
+
     def getIJ(ij, i):
         return ij[i], np.argmax(s[:ij[i]])
 
     i, j = getIJ(drop_i, -1)
 
-    return [sorted(choice), (gain - 0.1) / (3 * drop[i] + loss), a, loss]
+    return [sorted(choice), np.log(gain - 0.1 + 1) / loss, a, loss]
 
 
 def random_test(network, repeat, max):
