@@ -99,7 +99,7 @@ class Position():
         return result[1]
 
     def result(self):
-        score = self.score() - 0.8
+        score = self.score()
         return score
 
     def result_string(self):
@@ -175,18 +175,34 @@ def factorial_random(gots, network, repeat):
 
     return factorial_random(toKeep + nextGots, network, repeat)
 
-
+def findDrop(s, debug=True):
+    drop = 1 - s / np.maximum.accumulate(s)
+    i = np.argmax(drop) # end of the period
+    if i == 0: return 0,0
+    j = np.argmax(s[:i]) # start of period
+    jump = 1
+    while i + jump < len(s):
+        if s[i + jump] >= s[j]:
+            break
+        jump += 1
+        
+    return drop[i] * 100, drop.mean()
+    
+def stat(s):
+    drop, meandrop = findDrop(s, False)
+    x = np.arange(s.shape[0])
+    a, b = np.polyfit(x, s, 1)
+    y = b + a * x
+    fitloss = (np.power(s - y, 2)).sum() / y.shape[0]
+    return drop, meandrop, a, fitloss
+    
 def test_choice(choice):
     s = d[choice].sum(axis=0)
     s /= len(choice)
 
-    x = np.arange(len(s)) + 1
-    a, b = np.polyfit(x, np.log(s), 1)
-    y = np.exp(a * x + b)
+    drop, meandrop, a, fitloss = stat(s)
 
-    loss = (((y - s) / s) ** 2).sum()
-
-    return [sorted(choice), a / loss, a, loss]
+    return [sorted(choice), 1 - drop, drop, meandrop, a, fitloss]
 
 
 def random_test(network, repeat, max):

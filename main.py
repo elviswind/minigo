@@ -26,7 +26,6 @@ import evaluation
 import preprocessing
 import utils
 
-import cloud_logging
 import tensorflow as tf
 from absl import flags
 from tqdm import tqdm
@@ -169,7 +168,6 @@ argh.add_commands(parser, [bootstrap, train, train_dir, freeze_graph,
                            evaluate, validate, convert])
 
 if __name__ == '__main__':
-    cloud_logging.configure()
     # Let absl.flags parse known flags from argv, then pass the remaining flags
     # into argh for dispatching.
     remaining_argv = flags.FLAGS(sys.argv, known_only=True)
