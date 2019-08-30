@@ -29,6 +29,7 @@ import dual_net
 import preprocessing
 from strategies import MCTSPlayer
 import utils
+import dao
 
 flags.DEFINE_string('load_file', None, 'Path to model save files.')
 flags.DEFINE_string('selfplay_dir', None, 'Where to write game data.')
@@ -123,7 +124,7 @@ def run_game(load_file, selfplay_dir=None, holdout_dir=None,
         network = dual_net.DualNetwork(load_file)
 
     with utils.logged_timer("Playing game"):
-        player = play(network)
+        player = dao.play(network, selfplay_dir)
 
     output_name = '{}-{}'.format(int(time.time()), socket.gethostname())
     game_data = player.extract_data()

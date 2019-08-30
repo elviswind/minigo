@@ -33,7 +33,7 @@ from tensorflow.contrib.tpu.python.tpu import tpu_estimator
 from tensorflow.contrib.tpu.python.tpu import tpu_optimizer
 
 import features as features_lib
-import go
+import dao
 import symmetries
 
 
@@ -42,7 +42,7 @@ flags.DEFINE_integer('train_batch_size', 256,
                      'this is batch size as expected. If \"use_tpu\" is set,'
                      'final batch size will be = train_batch_size * num_tpu_cores')
 
-flags.DEFINE_integer('conv_width', 256 if go.N == 19 else 32,
+flags.DEFINE_integer('conv_width', 32,
                      'The width of each conv layer in the shared trunk.')
 
 flags.DEFINE_integer('policy_conv_width', 2,
@@ -51,10 +51,10 @@ flags.DEFINE_integer('policy_conv_width', 2,
 flags.DEFINE_integer('value_conv_width', 1,
                      'The width of the value conv layer.')
 
-flags.DEFINE_integer('fc_width', 256 if go.N == 19 else 64,
+flags.DEFINE_integer('fc_width', 64,
                      'The width of the fully connected layer in value head.')
 
-flags.DEFINE_integer('trunk_layers', go.N,
+flags.DEFINE_integer('trunk_layers', dao.N,
                      'The number of resnet layers in the shared trunk.')
 
 flags.DEFINE_multi_integer('lr_boundaries', [400000, 600000],
@@ -210,9 +210,9 @@ def get_inference_input():
 
     Returns the feature, output tensors that get passed into model_fn."""
     return (tf.placeholder(tf.float32,
-                           [None, go.N, go.N, features_lib.NEW_FEATURES_PLANES],
+                           [None, dao.N, features_lib.NEW_FEATURES_PLANES],
                            name='pos_tensor'),
-            {'pi_tensor': tf.placeholder(tf.float32, [None, go.N * go.N + 1]),
+            {'pi_tensor': tf.placeholder(tf.float32, [None, dao.M]),
              'value_tensor': tf.placeholder(tf.float32, [None])})
 
 
@@ -398,17 +398,17 @@ def model_inference_fn(features, training, params):
         fused=True,
         training=training)
 
-    mg_conv2d = functools.partial(
-        tf.layers.conv2d,
+    mg_conv1d = functools.partial(
+        tf.layers.conv1d,
         filters=params['conv_width'],
         kernel_size=3,
         padding='same',
         data_format='channels_last',
         use_bias=False)
 
-    mg_global_avgpool2d = functools.partial(
-        tf.layers.average_pooling2d,
-        pool_size=go.N,
+    mg_global_avgpool1d = functools.partial(
+        tf.layers.average_pooling1d,
+        pool_size=dao.N,
         strides=1,
         padding='valid',
         data_format='channels_last')
@@ -420,9 +420,9 @@ def model_inference_fn(features, training, params):
         return tf.nn.relu(inputs)
 
     def residual_inner(inputs):
-        conv_layer1 = mg_batchn(mg_conv2d(inputs))
+        conv_layer1 = mg_batchn(mg_conv1d(inputs))
         initial_output = mg_activation(conv_layer1)
-        conv_layer2 = mg_batchn(mg_conv2d(initial_output))
+        conv_layer2 = mg_batchn(mg_conv1d(initial_output))
         return conv_layer2
 
     def mg_res_layer(inputs):
@@ -459,7 +459,7 @@ def model_inference_fn(features, training, params):
         excitation = tf.multiply(scale, residual) + bias
         return mg_activation(inputs + excitation)
 
-    initial_block = mg_activation(mg_batchn(mg_conv2d(features)))
+    initial_block = mg_activation(mg_batchn(mg_conv1d(features)))
 
     # the shared stack
     shared_output = initial_block
@@ -470,25 +470,25 @@ def model_inference_fn(features, training, params):
             shared_output = mg_res_layer(shared_output)
 
     # Policy head
-    policy_conv = mg_conv2d(
+    policy_conv = mg_conv1d(
         shared_output, filters=params['policy_conv_width'], kernel_size=1)
     policy_conv = mg_activation(
         mg_batchn(policy_conv, center=False, scale=False))
     logits = tf.layers.dense(
         tf.reshape(
-            policy_conv, [-1, params['policy_conv_width'] * go.N * go.N]),
-        go.N * go.N + 1)
+            policy_conv, [-1, params['policy_conv_width'] * dao.N]),
+        dao.M)
 
     policy_output = tf.nn.softmax(logits, name='policy_output')
 
     # Value head
-    value_conv = mg_conv2d(
+    value_conv = mg_conv1d(
         shared_output, filters=params['value_conv_width'], kernel_size=1)
     value_conv = mg_activation(
         mg_batchn(value_conv, center=False, scale=False))
 
     value_fc_hidden = mg_activation(tf.layers.dense(
-        tf.reshape(value_conv, [-1, params['value_conv_width'] * go.N * go.N]),
+        tf.reshape(value_conv, [-1, params['value_conv_width'] * dao.N]),
         params['fc_width']))
     value_output = tf.nn.tanh(
         tf.reshape(tf.layers.dense(value_fc_hidden, 1), [-1]),
@@ -662,7 +662,7 @@ def freeze_graph_tpu(model_path):
         replicated_features = []
         for i in range(FLAGS.num_tpu_cores):
             features = tf.placeholder(
-                tf.float32, [None, go.N, go.N,
+                tf.float32, [None, dao.N,
                              features_lib.NEW_FEATURES_PLANES],
                 name='pos_tensor_%d' % i)
             replicated_features.append((features,))
