@@ -6,10 +6,33 @@ import os
 from collections import namedtuple
 
 
+threshold = 0.4
+
+def get_dpr(df):
+    base = 10
+    a = df.iloc[:, :-1]
+    b = df.iloc[:, 1:]
+    b.columns = a.columns = range(df.shape[1] - 1)
+    r = (b - a) / a
+    p = 1 / np.linalg.norm(r, axis=1)
+    r = (r.T * p).T.values
+    l = r.shape[0]
+
+    correlation = np.ones([l, l])
+    for i in range(l):
+        for j in range(i + 1, l):
+            s = (r[i] * r[j]).sum()
+            correlation[i][j] = s
+            correlation[j][i] = s
+    correlation[np.abs(correlation) > threshold] = 0
+    correlation[np.logical_and(np.abs(correlation) <= threshold, correlation != 0)] = 1
+
+    return (np.concatenate((np.ones([r.shape[0], 1]) * base,
+                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1),p,r,
+            correlation)
+
 def get_d():
     base = 10
-    threshold = 0.6
-
     df = pandas.read_csv('d.csv', index_col=0)
     # df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
     a = df.iloc[:, :-1]
@@ -38,10 +61,10 @@ d, eligible = get_d()
 d = d.astype(np.float32)
 N = d.shape[1]
 M = d.shape[0] + 1
-MAX = 6
+MAX = 10
 POOL_SIZE = 5000
 LOOPS = 20
-BLACK_LIST = [608]
+BLACK_LIST = []
 PREFER_LIST = []
 
 START_BOARD = np.zeros([N, 1], dtype=np.float32)
