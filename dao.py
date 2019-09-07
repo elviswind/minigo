@@ -282,6 +282,8 @@ def get_probabilities(network, choices):
         waves.append(wave)
 
     p, _ = network.run_many(waves)
+    for i in range(p.shape[0]):
+        p[i][np.isnan(p[i])] = 0
     return p
 
 

@@ -121,7 +121,7 @@ flags.DEFINE_integer(
     'keep_checkpoint_max', default=5, help='Number of checkpoints to keep.')
 
 flags.DEFINE_bool(
-    'use_random_symmetry', True,
+    'use_random_symmetry', False,
     help='If true random symmetries be used when doing inference.')
 
 flags.DEFINE_bool(
@@ -210,7 +210,7 @@ def get_inference_input():
 
     Returns the feature, output tensors that get passed into model_fn."""
     return (tf.placeholder(tf.float32,
-                           [None, dao.N, features_lib.NEW_FEATURES_PLANES],
+                           [None, dao.N, 1],
                            name='pos_tensor'),
             {'pi_tensor': tf.placeholder(tf.float32, [None, dao.M]),
              'value_tensor': tf.placeholder(tf.float32, [None])})
