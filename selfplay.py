@@ -126,27 +126,6 @@ def run_game(load_file, selfplay_dir=None, holdout_dir=None,
     with utils.logged_timer("Playing game"):
         player = dao.play(network, selfplay_dir)
 
-    output_name = '{}-{}'.format(int(time.time()), socket.gethostname())
-    game_data = player.extract_data()
-    if sgf_dir is not None:
-        with gfile.GFile(os.path.join(minimal_sgf_dir, '{}.sgf'.format(output_name)), 'w') as f:
-            f.write(player.to_sgf(use_comments=False))
-        with gfile.GFile(os.path.join(full_sgf_dir, '{}.sgf'.format(output_name)), 'w') as f:
-            f.write(player.to_sgf())
-
-    tf_examples = preprocessing.make_dataset_from_selfplay(game_data)
-
-    if selfplay_dir is not None:
-        # Hold out 5% of games for validation.
-        if random.random() < holdout_pct:
-            fname = os.path.join(holdout_dir,
-                                 "{}.tfrecord.zz".format(output_name))
-        else:
-            fname = os.path.join(selfplay_dir,
-                                 "{}.tfrecord.zz".format(output_name))
-
-        preprocessing.write_tf_examples(fname, tf_examples)
-
 
 def main(argv):
     """Entry point for running one selfplay game."""

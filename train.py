@@ -24,7 +24,6 @@ from absl import app, flags
 import numpy as np
 import tensorflow as tf
 
-import bigtable_input
 import dual_net
 import preprocessing
 import utils
@@ -59,18 +58,6 @@ flags.register_multi_flags_validator(
     ['use_bt', 'use_tpu'],
     lambda flags: flags['use_tpu'] if flags['use_bt'] else True,
     '`use_bt` flag only valid with `use_tpu` as well')
-
-
-@flags.multi_flags_validator(
-    ['use_bt', 'cbt_project', 'cbt_instance', 'cbt_table'],
-    message='Cloud Bigtable configuration flags not correct')
-def _bt_checker(flags_dict):
-    if not flags_dict['use_bt']:
-        return True
-    return (flags_dict['cbt_project']
-            and flags_dict['cbt_instance']
-            and flags_dict['cbt_table'])
-
 
 # From dual_net.py
 flags.declare_key_flag('work_dir')

@@ -5,6 +5,9 @@ import time
 import os
 from collections import namedtuple
 
+#python bootstrap.py --work_dir=.\t1 --export_path=.\t2\
+#python selfplay.py --load_file=.\t2\ --selfplay_dir=.\t3 --holdout_dir=.\t4
+#python train.py t3
 
 def get_d():
     base = 10
@@ -40,7 +43,7 @@ N = d.shape[1]
 M = d.shape[0] + 1
 MAX = 6
 POOL_SIZE = 5000
-LOOPS = 20
+LOOPS = 1
 BLACK_LIST = [608]
 PREFER_LIST = []
 
@@ -283,7 +286,7 @@ def get_probabilities(network, choices):
 
     p, _ = network.run_many(waves)
     for i in range(p.shape[0]):
-        p[i][np.isnan(p[i])] = 0
+        p[i] = p[i] + 0.01
     return p
 
 
