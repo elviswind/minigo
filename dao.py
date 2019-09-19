@@ -319,7 +319,7 @@ def play(network, output_dir):
     for x in range(LOOPS):
         lasttime = []
         if os.path.exists('lasttime.npy'):
-            lasttime = np.load('lasttime.npy').tolist()
+            lasttime = np.load('lasttime.npy', allow_pickle=True).tolist()
 
         thistime = random_test(network, 2, POOL_SIZE * 2)
         print("this run ", ",".join(map(lambda x: str(x[1])[:5], thistime[0:3])),
@@ -368,5 +368,5 @@ def play(network, output_dir):
 
 
 def test_make_examples():
-    lasttime = np.load('lasttime.npy').tolist()
+    lasttime = np.load('lasttime.npy', allow_pickle=True).tolist()
     make_examples(lasttime, 'temp')
