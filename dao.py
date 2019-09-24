@@ -5,11 +5,16 @@ import time
 import os
 from collections import namedtuple
 
+MAX = 10
+POOL_SIZE = 5000
+LOOPS = 20
+BLACK_LIST = []
+PREFER_LIST = []
+START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
-threshold = 0.4
+threshold = 0.3
 
 def get_dpr(df):
-    base = 10
     a = df.iloc[:, :-1]
     b = df.iloc[:, 1:]
     b.columns = a.columns = range(df.shape[1] - 1)
@@ -27,12 +32,11 @@ def get_dpr(df):
     correlation[np.abs(correlation) > threshold] = 0
     correlation[np.logical_and(np.abs(correlation) <= threshold, correlation != 0)] = 1
 
-    return (np.concatenate((np.ones([r.shape[0], 1]) * base,
-                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1),p,r,
+    return (np.concatenate((np.ones([r.shape[0], 1]) * MAX,
+                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * MAX), axis=1),p,r,
             correlation)
 
 def get_d():
-    base = 10
     df = pandas.read_csv('d.csv', index_col=0)
     # df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
     a = df.iloc[:, :-1]
@@ -52,8 +56,8 @@ def get_d():
     correlation[np.abs(correlation) > threshold] = 0
     correlation[np.logical_and(np.abs(correlation) <= threshold, correlation != 0)] = 1
 
-    return (np.concatenate((np.ones([r.shape[0], 1]) * base,
-                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1),
+    return (np.concatenate((np.ones([r.shape[0], 1]) * MAX,
+                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * MAX), axis=1),
             correlation)
 
 
@@ -61,13 +65,6 @@ d, eligible = get_d()
 d = d.astype(np.float32)
 N = d.shape[1]
 M = d.shape[0] + 1
-MAX = 10
-POOL_SIZE = 5000
-LOOPS = 20
-BLACK_LIST = []
-PREFER_LIST = []
-
-START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
 
 class IllegalMove(Exception):
