@@ -1,9 +1,9 @@
 import tensorflow as tf 
-import dao 
-import shipname
+from . import dao 
+from . import shipname
 import os 
-import dual_net
-import utils
+from . import dual_net
+from . import utils
 
 from absl import flags
 import sys
@@ -76,9 +76,24 @@ def train(working_dir):
     with utils.logged_timer("Training"):
         dual_net.train(*tf_records, steps=5000)
     print("== Training done.  Exporting model to ", model_save_path)
-    dual_net.export_model(flags.FLAGS.model_dir, model_save_path)
+    dual_net.export_model(working_dir, model_save_path)
     freeze_graph(model_save_path)
 
-#bootstrap('abc')
-#selfplay()
-train('abc')
+def run(n, path):
+    dao.init(path)
+    import os
+    import numpy as np
+    os.system('rmdir /S /Q temp')
+    os.system('rmdir /S /Q models')
+    os.system('rmdir /S /Q data')
+    if os.path.exists("lasttime.npy"):
+        os.remove("lasttime.npy") 
+    os.mkdir('data')
+
+    bootstrap('temp')
+    selfplay()
+    for i in range(n):
+        train('temp')
+        selfplay()
+
+    return np.load('lasttime.npy', allow_pickle=True).tolist()

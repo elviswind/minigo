@@ -1,18 +1,23 @@
 import pandas
 import numpy as np
-import utils
 import time
 import os
 from collections import namedtuple
+from . import utils
+from . import preprocessing
 
 MAX = 10
 POOL_SIZE = 5000
 LOOPS = 20
 BLACK_LIST = []
 PREFER_LIST = []
-START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
 threshold = 0.3
+N = 127
+M = 800
+START_BOARD = np.zeros([N, 1], dtype=np.float32)
+d = None
+eligible = None
 
 def get_dpr(df):
     a = df.iloc[:, :-1]
@@ -36,9 +41,8 @@ def get_dpr(df):
                             np.add.accumulate(r, axis=1) + np.ones(r.shape) * MAX), axis=1),p,r,
             correlation)
 
-def get_d():
-    df = pandas.read_csv('d.csv', index_col=0)
-    # df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
+def get_d(path):
+    df = pandas.read_csv(path, index_col=0)
     a = df.iloc[:, :-1]
     b = df.iloc[:, 1:]
     b.columns = a.columns = range(df.shape[1] - 1)
@@ -60,12 +64,19 @@ def get_d():
                             np.add.accumulate(r, axis=1) + np.ones(r.shape) * MAX), axis=1),
             correlation)
 
+def init(path):
+    global N
+    global M
+    global START_BOARD
+    global d, eligible
+    d, eligible = get_d(path)
+    d = d.astype(np.float32)
 
-d, eligible = get_d()
-d = d.astype(np.float32)
-N = d.shape[1]
-M = d.shape[0] + 1
+    N = d.shape[1]
+    M = d.shape[0] + 1
+    START_BOARD = np.zeros([N, 1], dtype=np.float32)
 
+init('d.csv')
 
 class IllegalMove(Exception):
     pass
@@ -148,7 +159,7 @@ def find_eligible(got):
 
 
 def add_probability_mod(p, l):
-    p = np.log(p + 1.0 + 1 / (np.power(100, l) + 100))
+    #p = np.log(p + 1.0 + 1 / (np.power(100, l) + 100))
     if len(PREFER_LIST) > 0:
         mod = np.ones(len(p))
         mod[PREFER_LIST] = 10
@@ -241,7 +252,6 @@ def random_test(network, repeat, max):
 
 def make_examples(results, output_dir):
     tf_examples = []
-    import preprocessing
     with utils.logged_timer("start making example 2"):
         dict = {}
         vict = {}
@@ -309,6 +319,8 @@ def get_probabilities(network, choices):
         waves.append(wave)
 
     p, _ = network.run_many(waves)
+    # if np.isnan(p).any():
+    #     return np.ones([M]) / M
     return p
 
 

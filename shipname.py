@@ -20,8 +20,7 @@ i.e. the number 135 corresponds to the string 000135-some-name and so on.
 import random
 import re
 import petname
-
-import go
+from . import go
 
 MODEL_NUM_REGEX = r"^\d{6}"
 MODEL_NAME_REGEX = r"^\d{6}(-\w+)+"

@@ -25,8 +25,7 @@ and the features from AGZ as NEW_FEATURES.
 """
 
 import numpy as np
-import go
-import utils
+from . import utils
 
 # Resolution/truncation limit for one-hot features
 P = 8

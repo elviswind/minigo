@@ -26,8 +26,6 @@ import itertools
 import numpy as np
 import os
 
-import coords
-
 N = int(os.environ.get('BOARD_SIZE', 9))
 
 # Represent a board as a numpy array, with 0 empty, 1 is black, -1 is white.

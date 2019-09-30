@@ -35,11 +35,10 @@ from tensorflow.contrib.tpu.python.tpu import tpu_config
 from tensorflow.contrib.tpu.python.tpu import tpu_estimator
 from tensorflow.contrib.tpu.python.tpu import tpu_optimizer
 
-import features as features_lib
-import go
-import preprocessing
-import symmetries
-import dao
+from . import features as features_lib
+from . import preprocessing
+from . import dao
+from . import go
 
 flags.DEFINE_integer('train_batch_size', 256,
                      'Batch size to use for train/eval evaluation. For GPU '

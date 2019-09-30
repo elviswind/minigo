@@ -16,15 +16,11 @@
 import functools
 import random
 
-import coords
-import features as features_lib
-import go
-import sgf_wrapper
-import symmetries
+from . import features as features_lib
 
 import numpy as np
 import tensorflow as tf
-import dao
+from . import dao
 
 TF_RECORD_CONFIG = tf.python_io.TFRecordOptions(
     tf.python_io.TFRecordCompressionType.ZLIB)
