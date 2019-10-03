@@ -1,20 +1,26 @@
 import pandas
 import numpy as np
-import utils
 import time
 import os
 from collections import namedtuple
 
-#python bootstrap.py --work_dir=.\t1 --export_path=.\t2\
-#python selfplay.py --load_file=.\t2\ --selfplay_dir=.\t3 --holdout_dir=.\t4
-#python train.py t3
+import utils
+import preprocessing
 
-def get_d():
-    base = 10
-    threshold = 0.6
+MAX = 10
+POOL_SIZE = 5000
+LOOPS = 20
+BLACK_LIST = []
+PREFER_LIST = []
 
-    df = pandas.read_csv('d.csv', index_col=0)
-    # df = df.filter(regex='[\u4e00-\u9fa5]', axis=0)
+threshold = 0.3
+N = 127
+M = 800
+START_BOARD = np.zeros([N, 1], dtype=np.float32)
+d = None
+eligible = None
+
+def get_dpr(df):
     a = df.iloc[:, :-1]
     b = df.iloc[:, 1:]
     b.columns = a.columns = range(df.shape[1] - 1)
@@ -32,23 +38,46 @@ def get_d():
     correlation[np.abs(correlation) > threshold] = 0
     correlation[np.logical_and(np.abs(correlation) <= threshold, correlation != 0)] = 1
 
-    return (np.concatenate((np.ones([r.shape[0], 1]) * base,
-                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * base), axis=1),
+    return (np.concatenate((np.ones([r.shape[0], 1]) * MAX,
+                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * MAX), axis=1),p,r,
             correlation)
 
+def get_d(path):
+    df = pandas.read_csv(path, index_col=0)
+    a = df.iloc[:, :-1]
+    b = df.iloc[:, 1:]
+    b.columns = a.columns = range(df.shape[1] - 1)
+    r = (b - a) / a
+    p = 1 / np.linalg.norm(r, axis=1)
+    r = (r.T * p).T.values
+    l = r.shape[0]
 
-d, eligible = get_d()
-d = d.astype(np.float32)
-N = d.shape[1]
-M = d.shape[0] + 1
-MAX = 6
-POOL_SIZE = 5000
-LOOPS = 1
-BLACK_LIST = [608]
-PREFER_LIST = []
+    correlation = np.ones([l, l])
+    for i in range(l):
+        for j in range(i + 1, l):
+            s = (r[i] * r[j]).sum()
+            correlation[i][j] = s
+            correlation[j][i] = s
+    correlation[np.abs(correlation) > threshold] = 0
+    correlation[np.logical_and(np.abs(correlation) <= threshold, correlation != 0)] = 1
 
-START_BOARD = np.zeros([N, 1], dtype=np.float32)
+    return (np.concatenate((np.ones([r.shape[0], 1]) * MAX,
+                            np.add.accumulate(r, axis=1) + np.ones(r.shape) * MAX), axis=1),
+            correlation)
 
+def init(path):
+    global N
+    global M
+    global START_BOARD
+    global d, eligible
+    d, eligible = get_d(path)
+    d = d.astype(np.float32)
+
+    N = d.shape[1]
+    M = d.shape[0] + 1
+    START_BOARD = np.zeros([N, 1], dtype=np.float32)
+
+init('d.csv')
 
 class IllegalMove(Exception):
     pass
@@ -102,7 +131,7 @@ class Position():
         return result[1]
 
     def result(self):
-        score = self.score() - 0.8
+        score = self.score()
         return score
 
     def result_string(self):
@@ -131,12 +160,14 @@ def find_eligible(got):
 
 
 def add_probability_mod(p, l):
-    p = np.log(p + 1.0 + 1 / (np.power(100, l) + 100))
+    #p = np.log(p + 1.0 + 1 / (np.power(100, l) + 100))
     if len(PREFER_LIST) > 0:
         mod = np.ones(len(p))
         mod[PREFER_LIST] = 10
         mod = mod / mod.sum()
         p = p + 0.2 * mod
+    p = np.nan_to_num(p)
+    p = p + 0.001
     p = p / p.sum()
     return p
 
@@ -182,6 +213,13 @@ def findDrop(s, debug=True):
     drop = 1 - s / np.maximum.accumulate(s)
     i = np.argmax(drop) # end of the period
     if i == 0: return 0,0
+    j = np.argmax(s[:i]) # start of period
+    jump = 1
+    while i + jump < len(s):
+        if s[i + jump] >= s[j]:
+            break
+        jump += 1
+        
     return drop[i] * 100, drop.mean()
     
 def stat(s):
@@ -191,7 +229,7 @@ def stat(s):
     y = b + a * x
     fitloss = (np.power(s - y, 2)).sum() / y.shape[0]
     return drop, meandrop, a, fitloss
-        
+    
 def test_choice(choice):
     s = d[choice].sum(axis=0)
     s /= len(choice)
@@ -217,7 +255,6 @@ def random_test(network, repeat, max):
 
 def make_examples(results, output_dir):
     tf_examples = []
-    import preprocessing
     with utils.logged_timer("start making example 2"):
         dict = {}
         vict = {}
@@ -285,8 +322,8 @@ def get_probabilities(network, choices):
         waves.append(wave)
 
     p, _ = network.run_many(waves)
-    for i in range(p.shape[0]):
-        p[i] = p[i] + 0.01
+    # if np.isnan(p).any():
+    #     return np.ones([M]) / M
     return p
 
 
@@ -294,7 +331,7 @@ def play(network, output_dir):
     for x in range(LOOPS):
         lasttime = []
         if os.path.exists('lasttime.npy'):
-            lasttime = np.load('lasttime.npy').tolist()
+            lasttime = np.load('lasttime.npy', allow_pickle=True).tolist()
 
         thistime = random_test(network, 2, POOL_SIZE * 2)
         print("this run ", ",".join(map(lambda x: str(x[1])[:5], thistime[0:3])),
@@ -343,5 +380,5 @@ def play(network, output_dir):
 
 
 def test_make_examples():
-    lasttime = np.load('lasttime.npy').tolist()
+    lasttime = np.load('lasttime.npy', allow_pickle=True).tolist()
     make_examples(lasttime, 'temp')
