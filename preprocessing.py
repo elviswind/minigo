@@ -16,13 +16,12 @@
 import functools
 import random
 
-import bigtable_input
 import coords
 import dual_net
 import features as features_lib
-import go
 import sgf_wrapper
 import symmetries
+import dao
 
 import numpy as np
 import tensorflow as tf
@@ -87,15 +86,13 @@ def batch_parse_tf_example(batch_size, example_batch):
         'outcome': tf.FixedLenFeature([], tf.float32),
     }
     parsed = tf.parse_example(example_batch, features)
-    x = tf.decode_raw(parsed['x'], tf.uint8)
-    x = tf.cast(x, tf.float32)
-    x = tf.reshape(x, [batch_size, go.N, go.N, planes])
+    x = tf.decode_raw(parsed['x'], tf.float32)
+    x = tf.reshape(x, [batch_size, dao.N, 1])
     pi = tf.decode_raw(parsed['pi'], tf.float32)
-    pi = tf.reshape(pi, [batch_size, go.N * go.N + 1])
+    pi = tf.reshape(pi, [batch_size, dao.M])
     outcome = parsed['outcome']
     outcome.set_shape([batch_size])
     return x, {'pi_tensor': pi, 'value_tensor': outcome}
-
 
 def read_tf_records(batch_size, tf_records, num_repeats=1,
                     shuffle_records=True, shuffle_examples=True,
