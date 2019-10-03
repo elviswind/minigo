@@ -54,7 +54,7 @@ flags.DEFINE_integer('value_conv_width', 1,
 flags.DEFINE_integer('fc_width', 64,
                      'The width of the fully connected layer in value head.')
 
-flags.DEFINE_integer('trunk_layers', dao.N,
+flags.DEFINE_integer('trunk_layers', 9,
                      'The number of resnet layers in the shared trunk.')
 
 flags.DEFINE_multi_integer('lr_boundaries', [400000, 600000],

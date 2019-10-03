@@ -101,6 +101,3 @@ def run(n, path):
         selfplay()
 
     return np.load('lasttime.npy', allow_pickle=True).tolist()
-
-
-run(2, 'd.csv')

@@ -167,5 +167,5 @@ EXTRA_FEATURES = [
 EXTRA_FEATURES_PLANES = sum(f.planes for f in EXTRA_FEATURES)
 
 
-def extract_features(position, features=NEW_FEATURES):
+def extract_features(position, features):
     return position
