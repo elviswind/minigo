@@ -3,6 +3,7 @@ import os
 import dao 
 import shipname
 import dual_net
+import preprocessing
 import utils
 
 from absl import flags
@@ -58,7 +59,7 @@ def selfplay(verbose=2):
     with utils.logged_timer("Playing game"):
         dao.play(network, selfplay_dir)
 
-def train(working_dir):
+def train():
     model_num, model_name = get_models()[-1]
 
     print("Training on gathered game data, initializing from {}".format(model_name))
@@ -73,9 +74,18 @@ def train(working_dir):
     
     print("Training on:", tf_records[0], "to", tf_records[-1])
     with utils.logged_timer("Training"):
-        dual_net.train(*tf_records, steps=5000)
+        estimator = dual_net.get_estimator()
+        def _input_fn():
+            return preprocessing.get_input_tensors(
+                16,
+                tf_records,
+                shuffle_records=False,
+                shuffle_examples=False,
+                random_rotation=False,
+            )
+        estimator.train(_input_fn, steps=25000)
     print("== Training done.  Exporting model to ", model_save_path)
-    dual_net.export_model(working_dir, model_save_path)
+    dual_net.export_model(model_save_path)
     freeze_graph(model_save_path)
 
 def run(n, path):
