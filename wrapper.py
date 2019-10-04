@@ -77,8 +77,9 @@ def train():
         estimator = dual_net.get_estimator()
         def _input_fn():
             return preprocessing.get_input_tensors(
-                16,
+                32,
                 tf_records,
+                num_repeats=1000,
                 shuffle_records=False,
                 shuffle_examples=False,
                 random_rotation=False,

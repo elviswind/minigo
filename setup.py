@@ -8,5 +8,5 @@ setuptools.setup(
     description="A small example package",
     long_description='',
     packages=setuptools.find_packages(),
-    python_requires='>=3.6',
+    python_requires='>=3.4',
 )
