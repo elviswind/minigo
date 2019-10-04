@@ -2,6 +2,8 @@ import zipline
 from minigo import wrapper, dao
 import numpy as np
 import pandas 
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 def initialize(context):
     pipe = zipline.pipeline.Pipeline()  
@@ -23,12 +25,15 @@ def rebalance(context, data):
     df = df.dropna(axis=0)
     df.to_csv('d2.csv')
     wrapper.run(2, 'd2.csv')
-    winner = pandas.DataFrame(np.load('lasttime.npy', allow_pickle=True)).iloc[:100,:].sort_values(4, ascending=False).iloc[0][0]
-    #winner = [26, 95, 172, 301, 303, 486, 510, 565, 749, 762]
-    chosen = df.iloc[winner]
+    winner = pandas.DataFrame(np.load('lasttime.npy', allow_pickle=True)).iloc[:100,:].sort_values(4, ascending=False).iloc[0]
+    print(winner)
+    chosen = df.iloc[winner[0]]
     p = dao.get_dpr(chosen)[1]
+    p = p / p.sum()
   
-    for i in range(len(chosen.index)): 
+    print(context.account.net_liquidation)
+    for i in range(len(chosen.index)):
+        print('take ' + chosen.index[i].symbol + ' ' + str(context.account.net_liquidation * p[i]))
         zipline.api.order_target_value(chosen.index[i], context.account.net_liquidation * p[i])
 
     pass
