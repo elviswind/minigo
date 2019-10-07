@@ -58,6 +58,12 @@ def selfplay(verbose=2):
 
     with utils.logged_timer("Playing game"):
         dao.play(network, selfplay_dir)
+        
+def selfplay_random(times):
+    _, model_name = get_models()[-1]
+    utils.ensure_dir_exists(os.path.join('data', model_name))
+    selfplay_dir = os.path.join('data', model_name)
+    dao.playByRandom(selfplay_dir, times)
 
 def train(working_dir):
     model_num, model_name = get_models()[-1]
@@ -83,6 +89,7 @@ def run(n, path):
     dao.init(path)
     import os
     import numpy as np
+    import pandas
     os.system('rmdir /S /Q temp')
     os.system('rmdir /S /Q models')
     os.system('rmdir /S /Q data')
@@ -91,9 +98,13 @@ def run(n, path):
     os.mkdir('data')
 
     bootstrap('temp')
-    selfplay()
-    for i in range(n):
+    selfplay_random(300)
+    i = 0
+    while True:
         train('temp')
         selfplay()
-
-    return np.load('lasttime.npy', allow_pickle=True).tolist()
+        selfplay_random(100)
+        x = pandas.DataFrame(np.load('lasttime.npy', allow_pickle=True))
+        if x[x[2]<1].shape[0] > 100 or i > 10:
+            return np.load('lasttime.npy', allow_pickle=True).tolist()
+        i += 1

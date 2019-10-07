@@ -323,6 +323,103 @@ def get_probabilities(network, choices):
     #     return np.ones([M]) / M
     return p
 
+def find_eligible_no_network(got):
+    if len(got) == 0: return list(range(d.shape[0]))
+    origin = eligible[got[0]]
+    for i in range(1, len(got)):
+        origin = np.logical_and(eligible[got[i]], origin)
+    ret = np.where(origin)[0].tolist()
+    return [i for i in ret if i not in BLACK_LIST]
+
+def factorial_random_no_network(gots, repeat):
+    if gots is None or len(gots) == 0:
+        gots = []
+        f = find_eligible_no_network([])
+        for j in range(repeat):
+            c = np.random.choice(f, 1)[0]
+            gots.append([c])
+
+    toContinue = []
+    toKeep = []
+    for got in gots:
+        if len(got) == MAX:
+            toKeep.append(got)
+        else:
+            toContinue.append(got)
+
+    if len(toContinue) == 0:
+        return toKeep
+
+    fines = []
+    for got in toContinue:
+        fines.append(find_eligible_no_network(got))
+        
+    nextGots = []
+    for i in range(len(toContinue)):
+        for j in range(repeat):
+            if len(fines[i]) > 0:
+                c = np.random.choice(fines[i], 1)[0]
+                nextGots.append(toContinue[i] + [c])
+
+    return factorial_random_no_network(toKeep + nextGots, repeat)
+
+def playByRandom(output_dir, times):
+    lasttime = []
+    if os.path.exists('lasttime.npy'):
+        lasttime = np.load('lasttime.npy', allow_pickle=True).tolist()
+
+    thistime = []
+    for i in range(times):
+        xs = factorial_random_no_network([], 2)
+        for x in xs:
+            x.sort()
+            thistime.append(test_choice(x))
+    thistime = pandas.DataFrame(thistime)
+    thistime = thistime[thistime[2] < 2].sort_values(2).values
+    print("this run ", ",".join(map(lambda x: str(x[1])[:5], thistime[0:3])),
+            ",".join(map(lambda x: str(x[1])[:5], thistime[-3:])))
+
+    i = 0
+    j = 0
+    tmp = set()
+    output = []
+    newfound = 0
+    if len(lasttime) == 0:
+        output = thistime
+    else:
+        while len(output) < POOL_SIZE:
+            a = -10000
+            b = -10000
+            if i < len(thistime):
+                a = thistime[i][1]
+                a_key = str(thistime[i][0])
+            if j < len(lasttime):
+                b = lasttime[j][1]
+                b_key = str(lasttime[j][0])
+
+            if a > b and i < len(thistime):
+                if a_key not in tmp and len([x for x in BLACK_LIST if x not in thistime[i][0]]) == len(BLACK_LIST):
+                    tmp.add(a_key)
+                    output.append(thistime[i])
+                    newfound += 1
+                i += 1
+            elif a <= b and j < len(lasttime):
+                if b_key not in tmp and len([x for x in BLACK_LIST if x not in lasttime[j][0]]) == len(BLACK_LIST):
+                    tmp.add(b_key)
+                    output.append(lasttime[j])
+                j += 1
+            else:
+                break
+
+    print("add {} new records ".format(newfound))
+    print("after merge ", ",".join(map(lambda x: str(x[1])[:5], output[0:3])),
+            ",".join(map(lambda x: str(x[1])[:5], output[-3:])))
+
+    np.save('lasttime.npy', np.array(output))
+
+    with utils.logged_timer("start making example"):
+        make_examples(output, output_dir)
+
 
 def play(network, output_dir):
     for x in range(LOOPS):
