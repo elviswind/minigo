@@ -224,7 +224,8 @@ def stat(s):
     x = np.arange(s.shape[0])
     a, b = np.polyfit(x, s, 1)
     y = b + a * x
-    fitloss = (np.power(s - y, 2)).sum() / y.shape[0]
+    fitloss = np.abs(s / y - 1).max()
+    #fitloss = (np.power(s - y, 2)).sum() / y.shape[0]
     return drop, meandrop, a, fitloss
     
 def test_choice(choice):

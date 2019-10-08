@@ -36,10 +36,8 @@ def rebalance(context, data):
     
     df = data.history(results.index[list(x)], fields="price", bar_count=200, frequency="1d").resample('1W').last().T
     df = df.dropna(axis=0)
-    df.to_csv('d2.csv')
-    
     df.to_csv(day + '_d.csv')
-    wrapper.run(2, 'd2.csv')
+    wrapper.run(2, day + '_d.csv')
     winner = pandas.DataFrame(np.load('lasttime.npy', allow_pickle=True)).iloc[:100,:].sort_values(4, ascending=False).iloc[0]
     copyfile('lasttime.npy', day + '_n.npy')
     print(winner)
